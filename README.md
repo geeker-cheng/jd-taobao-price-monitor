@@ -111,18 +111,43 @@ and the 65W GaN multi-port product page. However the detail endpoint does not ex
 PRODUCT_PAGE_PRICE
 ```
 
-## Secrets
+## API keys and Maishou invite-code disclosure
 
-Repository Actions secrets:
+Repository Actions secret required for Taobao/Tmall:
 
 ```text
 HAODANKU_API_KEY
-MAISHOU_INVITE_CODE
 ```
 
-`HAODANKU_API_KEY` is required for Taobao/Tmall.
+`HAODANKU_API_KEY` is a credential and must **not** be committed to the repository.
 
-`MAISHOU_INVITE_CODE` is required for JD. The production code intentionally has **no hard-coded public/referral invite-code fallback**. Do not commit either value into the repository.
+For JD, the project intentionally includes this public Maishou invite code as a reproducible default:
+
+```text
+6110440
+```
+
+Important disclosure:
+
+- `6110440` was found in public third-party Maishou-related integrations during this project's research and was verified to pass the currently tested Maishou v1 invite/login gate.
+- The code is **not owned by this repository or its maintainer**. It may be a referral/attribution code belonging to another party.
+- The project does not claim endorsement by Maishou or by the owner of that invite code.
+- The monitor uses Maishou search/detail endpoints for price research. It does not need to call a purchase/share-link conversion endpoint.
+- Anyone who wants to avoid third-party referral attribution should configure their own `MAISHOU_INVITE_CODE`.
+
+Override priority is:
+
+```text
+explicit constructor value
+        ↓
+MAISHOU_INVITE_CODE environment variable / GitHub Actions secret
+        ↓
+public default 6110440
+```
+
+Therefore a clone or fork can run JD research with the documented public default, while users with their own invite code can override it without changing source code. `MAISHOU_INVITE_CODE` is optional; `HAODANKU_API_KEY` remains required for Taobao/Tmall.
+
+Maishou endpoints used by this project appear to be application-facing interfaces rather than a guaranteed public developer API, so availability and behavior can change without notice.
 
 ## State files
 

@@ -14,6 +14,9 @@ from .base import PriceSource
 BASE_URL = "https://appapi.maishou88.com"
 SEARCH_PATH = "/api/v1/homepage/searchList"
 DETAIL_PATH = "/api/v3/goods/detail"
+# Public third-party referral/invite code used as a reproducible default.
+# Users can override it with MAISHOU_INVITE_CODE. See README disclosure.
+DEFAULT_PUBLIC_INVITE_CODE = "6110440"
 TIMEOUT = (6, 12)
 HEADERS = {
     "Accept": "application/json",
@@ -71,10 +74,10 @@ class MaishouSource(PriceSource):
         invite_code: str | None = None,
         session: requests.Session | None = None,
     ):
-        # Intentionally no public/referral fallback in production code.
-        self.invite_code = (
+        configured_code = (
             invite_code if invite_code is not None else os.getenv("MAISHOU_INVITE_CODE", "")
-        ).strip()
+        )
+        self.invite_code = (configured_code or DEFAULT_PUBLIC_INVITE_CODE).strip()
         self.session = session or requests.Session()
 
     def _quote(self, product: dict, status: str, **kwargs) -> Quote:
@@ -178,13 +181,6 @@ class MaishouSource(PriceSource):
         )
 
     def fetch(self, product: dict) -> Quote:
-        if not self.invite_code:
-            return self._quote(
-                product,
-                "CONFIG_REQUIRED",
-                detail={"required_secret": "MAISHOU_INVITE_CODE"},
-            )
-
         source_cfg = product.get("source") or {}
         mapping = source_cfg.get("mapping") or {}
         mapped_goods_id = mapping.get("provider_goods_id")

@@ -1,8 +1,10 @@
+import os
 import unittest
+from unittest.mock import patch
 
 from price_monitor.models import PriceConfidence
 from price_monitor.sources.haodanku import HaodankuSource
-from price_monitor.sources.maishou import MaishouSource
+from price_monitor.sources.maishou import DEFAULT_PUBLIC_INVITE_CODE, MaishouSource
 
 
 class FakeResponse:
@@ -129,11 +131,21 @@ class SourceTests(unittest.TestCase):
         self.assertEqual("AMBIGUOUS_SOURCE_MAPPING", q.status)
         self.assertIsNone(q.monitoring_price)
 
-    def test_maishou_does_not_use_public_code_fallback(self):
-        src = MaishouSource(invite_code="", session=FakeMaishouSession({}))
-        q = src.fetch(JD_PRODUCT)
-        self.assertEqual("CONFIG_REQUIRED", q.status)
-        self.assertEqual("MAISHOU_INVITE_CODE", q.detail["required_secret"])
+    def test_maishou_uses_disclosed_public_default(self):
+        with patch.dict(os.environ, {"MAISHOU_INVITE_CODE": ""}):
+            src = MaishouSource(session=FakeMaishouSession({}))
+        self.assertEqual("6110440", DEFAULT_PUBLIC_INVITE_CODE)
+        self.assertEqual(DEFAULT_PUBLIC_INVITE_CODE, src.invite_code)
+
+    def test_maishou_environment_overrides_public_default(self):
+        with patch.dict(os.environ, {"MAISHOU_INVITE_CODE": "own-code"}):
+            src = MaishouSource(session=FakeMaishouSession({}))
+        self.assertEqual("own-code", src.invite_code)
+
+    def test_maishou_explicit_code_overrides_environment(self):
+        with patch.dict(os.environ, {"MAISHOU_INVITE_CODE": "env-code"}):
+            src = MaishouSource(invite_code="explicit-code", session=FakeMaishouSession({}))
+        self.assertEqual("explicit-code", src.invite_code)
 
 
 if __name__ == "__main__":
