@@ -1,27 +1,38 @@
 # JD + Taobao/Tmall Price Monitor
 
-A small, configuration-driven price-monitoring framework for personal shopping.
+A configuration-driven price collection and history framework for personal shopping research.
 
-The project currently supports only:
+Current platform support:
 
-- **JD**: Maishou search/detail as the data source.
-- **Taobao/Tmall**: Haodanku ordinary OpenAPI search/detail.
+- **JD**: Maishou search/detail
+- **Taobao/Tmall**: Haodanku ordinary OpenAPI search/detail
 
 **Pinduoduo is intentionally out of scope.**
 
-## Design goals
+## Current scope
 
-1. Adding a product should normally mean editing `config/products.yaml`, not changing Python code.
-2. A new product is verified once before it becomes a normal monitored item.
-3. Never treat “the cheapest search result” as the requested SKU automatically.
-4. Distinguish exact-SKU prices from product-page prices.
-5. API failure is a data error, not “no price change”.
-6. Sudden suspicious drops are rejected as anomalies instead of immediately triggering an alert.
-7. GitHub-hosted runners persist state through small JSON files rather than SQLite.
+The current production phase focuses on **reliable collection, identity validation, normalized state, and price history**.
+
+Implemented now:
+
+1. Add products through `config/products.yaml` rather than platform-specific Python changes.
+2. Verify a product once before normal monitoring.
+3. Never automatically treat the cheapest search result as the requested SKU.
+4. Distinguish `EXACT_SKU_PRICE`, `PRODUCT_PAGE_PRICE`, and `UNVERIFIED`.
+5. Treat API/network/identity failures as data errors rather than price changes.
+6. Persist accepted positive prices from `OK` quotes regardless of the size of the price move.
+7. Keep GitHub-hosted-runner state in small JSON files rather than SQLite.
+
+Not implemented in the current phase:
+
+- target-price notifications
+- significant-drop notifications
+- alert re-arm/state-machine logic
+- price-change-based anomaly thresholds
+
+The alert-related config/type/state interfaces are intentionally retained so this layer can be developed later without redesigning the collector. See `docs/CURRENT_SCOPE.md`.
 
 ## Product lifecycle
-
-Recommended onboarding:
 
 ```text
 NEW
@@ -37,38 +48,30 @@ VERIFIED
 MONITORING
 ```
 
-Supported lifecycle values:
+Supported lifecycle values: `NEW`, `VERIFIED`, `MONITORING`, `PAUSED`, `INVALID`.
 
-- `NEW`
-- `VERIFIED`
-- `MONITORING`
-- `PAUSED`
-- `INVALID`
+If a product disappears, the system must not silently replace it with a similar result.
 
-If a product disappears, the system must not silently replace it with a similar search result.
+## Adding another product
 
-## Add another product
+Add one block to `config/products.yaml`. For JD, prefer a canonical JD SKU URL/ID. For Taobao/Tmall, configure the intended brand store plus strict inclusion/exclusion rules.
 
-Add one block to `config/products.yaml`.
-
-For JD, prefer a canonical JD product/SKU URL and ID. For Taobao/Tmall, configure the exact brand store and strict title exclusions. After adding a product, run:
+After editing configuration:
 
 ```bash
 python -m price_monitor.cli validate
 python -m unittest discover -s tests -v
 ```
 
-A product should only be switched to `MONITORING` after its identity and store are confirmed.
+Only switch a product to `MONITORING` after identity and store verification.
 
 ## Price confidence
 
-The normalized output uses:
+- `EXACT_SKU_PRICE`: the source-to-SKU mapping has been explicitly verified.
+- `PRODUCT_PAGE_PRICE`: the correct product page/store is known, but the source does not expose enough variant attributes to prove the exact SKU.
+- `UNVERIFIED`: the result has not been promoted to exact-SKU confidence.
 
-- `EXACT_SKU_PRICE`: source-to-SKU mapping has been explicitly verified.
-- `PRODUCT_PAGE_PRICE`: correct product page/store, but the API does not expose enough variant attributes to prove the exact SKU.
-- `UNVERIFIED`: source result cannot yet be promoted to exact-SKU confidence.
-
-By default, `PRODUCT_PAGE_PRICE` does **not** generate a formal target-price alert. It can only create a candidate event that requires SKU confirmation.
+Confidence is stored in history so a future notification layer can apply different policies without recollecting historical data.
 
 ## Current AD653C baseline
 
@@ -80,19 +83,15 @@ Canonical JD SKU:
 100068768088
 ```
 
-Shop requirement:
+Required shop:
 
 ```text
 CUKTECH酷态科京东自营旗舰店
 ```
 
-The exact SKU mapping investigation is documented in:
+Exact mapping evidence is documented in `docs/JD_MAPPING.md`.
 
-```text
-docs/JD_MAPPING.md
-```
-
-The current verified Maishou-side mapping is:
+Current Maishou-side mapping:
 
 ```yaml
 source:
@@ -102,94 +101,51 @@ source:
     provider_goods_id: null
 ```
 
-`provider_goods_id_b` is a Maishou-side opaque/stable-ish identity. It is **not** described as a public JD SKU.
+`provider_goods_id_b` is a Maishou-side opaque/stable-ish identity, **not a public JD SKU**. Full Maishou `goodsId` prefixes changed across live runs, so the runtime pins the stable identity and revalidates title, shop, and self-operated status.
 
-Why the full `goodsId` is not pinned:
+If the cached request handle becomes stale for a non-network reason, the monitor performs at most one bounded discovery query and accepts only the same verified stable identity. It never substitutes another cheaper candidate.
 
-- Multiple Maishou entities matched the human-facing 65W charger family.
-- The full `goodsId` prefix changed between separate live GitHub Actions runs.
-- `jdGoodsIdB` remained stable across those runs.
-- Independent sources tie JD SKU `100068768088` to the same full title returned by `3nmugCitgMCAZO0wcs`.
-
-Runtime behavior for a verified mapping is deliberately strict:
-
-```text
-known candidate for provider_goods_id_b
-        ↓
-detail request
-        ↓
-same stable identity + title/shop/self-operated checks
-        ↓
-EXACT_SKU_PRICE
-```
-
-If that cached request handle becomes stale for a non-network reason, the monitor performs at most one discovery search and accepts **only the same verified `provider_goods_id_b`**. It never substitutes another cheaper candidate.
-
-If the verified identity cannot be recovered, the result is:
-
-```text
-MAPPED_ENTITY_NOT_FOUND
-```
-
-If the request is uncertain because of a network error, the result is:
-
-```text
-SOURCE_ERROR
-```
-
-Neither state records a price sample.
+If the identity cannot be recovered, the result is `MAPPED_ENTITY_NOT_FOUND`. If the request is uncertain because of network failure, the result is `SOURCE_ERROR`. Neither state records a price sample.
 
 ### Taobao/Tmall
 
-Haodanku ordinary API can identify:
+Haodanku can identify `CUKTECH酷态科旗舰店` and the 65W GaN multi-port product page. The detail endpoint does not expose enough variant attributes to prove `AD653C / 2C1A / 灰色 / 单体` on every run, so the quote is deliberately classified as `PRODUCT_PAGE_PRICE`.
 
-```text
-CUKTECH酷态科旗舰店
-```
+## Maishou invite-code disclosure
 
-and the 65W GaN multi-port product page. However the detail endpoint does not expose enough fields to prove `AD653C / 2C1A / 灰色 / 单体` on every run, so the source is deliberately classified as:
-
-```text
-PRODUCT_PAGE_PRICE
-```
-
-## API keys and Maishou invite-code disclosure
-
-Repository Actions secret required for Taobao/Tmall:
+Taobao/Tmall requires repository secret:
 
 ```text
 HAODANKU_API_KEY
 ```
 
-`HAODANKU_API_KEY` is a credential and must **not** be committed to the repository.
+This credential must not be committed.
 
-For JD, the project intentionally includes this public Maishou invite code as a reproducible default:
+JD uses the following public Maishou invite code as a reproducible default:
 
 ```text
 6110440
 ```
 
-Important disclosure:
+Disclosure:
 
-- `6110440` was found in public third-party Maishou-related integrations during this project's research and was verified to pass the currently tested Maishou v1 invite/login gate.
-- The code is **not owned by this repository or its maintainer**. It may be a referral/attribution code belonging to another party.
-- The project does not claim endorsement by Maishou or by the owner of that invite code.
-- The monitor uses Maishou search/detail endpoints for price research. It does not need to call a purchase/share-link conversion endpoint.
-- Anyone who wants to avoid third-party referral attribution should configure their own `MAISHOU_INVITE_CODE`.
+- `6110440` was found in public third-party Maishou-related integrations and passed the tested Maishou invite/login gate.
+- It is not owned by this repository or its maintainer and may be a referral/attribution code belonging to another party.
+- The project does not claim endorsement by Maishou or the code owner.
+- The monitor uses search/detail endpoints only; it does not need a purchase/share-link conversion endpoint.
+- Users can override it with `MAISHOU_INVITE_CODE`.
 
-Override priority is:
+Override priority:
 
 ```text
 explicit constructor value
         ↓
-MAISHOU_INVITE_CODE environment variable / GitHub Actions secret
+MAISHOU_INVITE_CODE environment variable / Actions secret
         ↓
 public default 6110440
 ```
 
-Therefore a clone or fork can run JD research with the documented public default, while users with their own invite code can override it without changing source code. `MAISHOU_INVITE_CODE` is optional; `HAODANKU_API_KEY` remains required for Taobao/Tmall.
-
-Maishou endpoints used by this project appear to be application-facing interfaces rather than a guaranteed public developer API, so availability and behavior can change without notice.
+Maishou interfaces used here appear application-facing rather than a guaranteed public developer API and may change without notice.
 
 ## State files
 
@@ -199,59 +155,41 @@ data/price_history.json
 data/alert_state.json
 ```
 
-`price_status.json` contains the latest normalized result.
+- `price_status.json`: latest normalized result for every monitored product.
+- `price_history.json`: accepted positive price samples, including confidence/source metadata.
+- `alert_state.json`: **reserved extension state only**; current runtime does not maintain target/re-arm/reference alert state.
 
-`price_history.json` contains accepted price samples.
+A sample is accepted into history when the normalized quote is `OK` and has a positive monitoring price. There is intentionally **no default percentage-change anomaly rejection**. Trust is determined by source/product/store identity validation rather than an arbitrary price-movement threshold.
 
-`alert_state.json` contains target re-arm state, last valid price and significant-drop reference.
+## Reserved alert interface
 
-## Alert behavior
+The following interfaces remain available but are inactive:
 
-### Target price
-
-```text
-above target → ARMED
-first cross below target → one alert
-stay below → no repeated alert
-rise above → re-arm
+```yaml
+alert:
+  enabled: false
+  target_price: null
+  significant_drop_pct: null
 ```
 
-### Gradual drop
-
-Significant-drop logic compares against a persistent reference price, not only the previous sample. Therefore a sequence such as:
-
-```text
-1000 → 970 → 940 → 910
-```
-
-can still trigger an 8% threshold.
-
-`significant_drop_pct` is `null` in the sample products because no user threshold has been chosen yet.
-
-### Anomaly protection
-
-A drop of 25% or more from the last accepted price is rejected as `ANOMALY` by default. It does not move the accepted-price baseline and cannot generate a formal alert.
-
-This threshold is a safety guard and can be changed per product.
+The `AlertEvent` type, `events` output field, and `alert_state.json` are also retained. The current runtime always emits no price alerts. A later notification phase can implement these interfaces separately from price collection.
 
 ## GitHub Actions
 
-The production workflow is intentionally **manual-only** for now:
+The workflow is still manual-only:
 
 ```text
 workflow_dispatch
 ```
 
-There is no `push` trigger and no schedule.
-
-The job has:
+There is no `push` trigger and no schedule. The job has a hard limit:
 
 ```yaml
 timeout-minutes: 5
 ```
 
-`run_live=false` runs only config validation and unit tests.
+`run_live=false` performs config validation and unit tests only.
 
-`run_live=true` additionally performs a live collection using repository secrets and uploads the resulting state JSON as a short-lived artifact.
+`run_live=true` additionally performs live collection and uploads the three state JSON files as a short-lived artifact.
 
-Automatic scheduling and state commits should only be enabled after the manual production simulation is reviewed.
+Automatic scheduling and repository state commits should be enabled only after the persistence design is finalized.

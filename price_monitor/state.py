@@ -46,18 +46,10 @@ class StateStore:
         self.alert = load_json(self.alert_path, DEFAULT_ALERT)
 
     def product_alert_state(self, product_id: str) -> dict:
+        # Reserved extension point. Alert logic is intentionally inactive in the
+        # current phase, so no target/re-arm/reference state is pre-populated.
         products = self.alert.setdefault("products", {})
-        return products.setdefault(
-            product_id,
-            {
-                "target_armed": True,
-                "candidate_target_armed": True,
-                "last_valid_price": None,
-                "reference_price": None,
-                "last_alert_price": None,
-                "last_alert_at": None,
-            },
-        )
+        return products.setdefault(product_id, {})
 
     def set_status(self, product_id: str, value: dict) -> None:
         self.status.setdefault("products", {})[product_id] = value

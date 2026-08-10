@@ -15,7 +15,7 @@ class FixedSource:
 
 
 class EngineTests(unittest.TestCase):
-    def test_engine_persists_valid_quote(self):
+    def test_engine_persists_valid_quote_without_alert_evaluation(self):
         config = {
             "history_limit": 10,
             "products": [
@@ -25,9 +25,9 @@ class EngineTests(unittest.TestCase):
                     "status": "MONITORING",
                     "platform": "jd",
                     "alert": {
-                        "target_price": None,
-                        "significant_drop_pct": None,
-                        "anomaly_drop_pct": 0.25,
+                        "enabled": False,
+                        "target_price": 100,
+                        "significant_drop_pct": 0.01,
                     },
                 }
             ],
@@ -38,8 +38,8 @@ class EngineTests(unittest.TestCase):
             status="OK",
             source="fake",
             checked_at="t",
-            price=80,
-            effective_price=80,
+            price=10,
+            effective_price=10,
             confidence=PriceConfidence.EXACT_SKU_PRICE.value,
         )
         with tempfile.TemporaryDirectory() as td:
@@ -50,7 +50,11 @@ class EngineTests(unittest.TestCase):
                 sources={"jd": FixedSource(q)},
             ).run(now="t")
             self.assertEqual("OK", result["products"]["x"]["status"])
+            self.assertTrue(result["products"]["x"]["accepted_sample"])
+            self.assertEqual([], result["products"]["x"]["events"])
+            self.assertEqual([], result["events"])
             self.assertEqual(1, len(store.history["products"]["x"]))
+            self.assertEqual({}, store.alert["products"]["x"])
 
 
 if __name__ == "__main__":

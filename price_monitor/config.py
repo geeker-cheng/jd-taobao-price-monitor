@@ -71,16 +71,16 @@ def load_config(path: str | Path) -> dict:
         if not isinstance(allowed, list) or not allowed:
             raise ConfigError(f"{product_id}: shops.allowed must be non-empty")
 
+        # Reserved alert interface. These fields are validated only for schema
+        # compatibility; the current runtime does not evaluate or emit alerts.
         alert = _require_dict(product.get("alert", {}), f"{product_id}.alert")
+        enabled = alert.get("enabled", False)
+        if not isinstance(enabled, bool):
+            raise ConfigError(f"{product_id}: alert.enabled must be boolean")
         for field in ("target_price", "significant_drop_pct"):
             value = alert.get(field)
             if value is not None and not isinstance(value, (int, float)):
                 raise ConfigError(f"{product_id}: alert.{field} must be numeric or null")
-        anomaly = alert.get("anomaly_drop_pct", 0.25)
-        if not isinstance(anomaly, (int, float)) or not (0 < anomaly < 1):
-            raise ConfigError(
-                f"{product_id}: alert.anomaly_drop_pct must be between 0 and 1"
-            )
 
     return data
 

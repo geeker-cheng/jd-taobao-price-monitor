@@ -21,13 +21,21 @@ products:
     source: {provider: anything}
     match: {required_title_groups: [[x]]}
     shops: {allowed: [x]}
-    alert: {anomaly_drop_pct: 0.25}
+    alert: {enabled: false}
 """
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "products.yaml"
             path.write_text(text, encoding="utf-8")
             with self.assertRaises(ConfigError):
                 load_config(path)
+
+    def test_reserved_alert_interface_accepts_null_threshold_fields(self):
+        cfg = load_config("config/products.yaml")
+        for product in cfg["products"]:
+            self.assertFalse(product["alert"]["enabled"])
+            self.assertIsNone(product["alert"]["target_price"])
+            self.assertIsNone(product["alert"]["significant_drop_pct"])
+            self.assertNotIn("anomaly_drop_pct", product["alert"])
 
 
 if __name__ == "__main__":

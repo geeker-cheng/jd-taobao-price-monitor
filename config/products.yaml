@@ -40,8 +40,6 @@ products:
         - 充电线
     source:
       provider: maishou
-      # Provider-side request handles observed and detail-validated on 2026-08-10.
-      # Full goodsId prefixes changed between live runs, so these are cache hints.
       known_candidates:
         - goods_id: hd4KVC5N4yYCS3vqXWFYCS3vqXWFY4_3xcjcDDVDGKSVJmQFn
           goods_id_b: 3xcjcDDVDGKSVJmQFn
@@ -52,24 +50,19 @@ products:
       discovery_keyword: 酷态科 65W 氮化镓
       mapping:
         verified: true
-        # Maishou-side stable-ish identity. This is NOT a public JD SKU.
         provider_goods_id_b: 3nmugCitgMCAZO0wcs
-        # Legacy/full-ID pin intentionally left empty because the prefix changed
-        # between live runs.
         provider_goods_id: null
         verified_at: "2026-08-10"
         canonical_sku: "100068768088"
         canonical_title: "CUKTECH酷态科65W氮化镓充电头USB/Type-C多口快充器适用40W苹果17小米/华为/三星/MacbookNeo/笔记本电脑"
         note: >-
           The canonical JD SKU is independently tied to the same full product
-          title and standalone package. Of the three Maishou candidates,
-          3nmugCitgMCAZO0wcs matches that canonical title exactly. See
-          docs/JD_MAPPING.md for evidence and caveats.
+          title and standalone package. See docs/JD_MAPPING.md.
     alert:
+      # Reserved extension interface only. Runtime alert evaluation is disabled.
+      enabled: false
       target_price: null
       significant_drop_pct: null
-      anomaly_drop_pct: 0.25
-      allow_product_page_alerts: false
 
   - id: cuktech_ad653c_tmall
     enabled: true
@@ -113,7 +106,7 @@ products:
         - 酷态科 65W 氮化镓
         - CUKTECH 65W 氮化镓
     alert:
+      # Reserved extension interface only. Runtime alert evaluation is disabled.
+      enabled: false
       target_price: null
       significant_drop_pct: null
-      anomaly_drop_pct: 0.25
-      allow_product_page_alerts: false
