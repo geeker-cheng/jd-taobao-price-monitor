@@ -91,6 +91,31 @@ class AlertTests(unittest.TestCase):
         self.assertEqual("CANDIDATE_TARGET_REACHED", events[0].event_type)
         self.assertFalse(events[0].formal)
 
+    def test_candidate_target_does_not_disarm_future_exact_alert(self):
+        p = product(target=80, allow_page=False)
+        state = {
+            "target_armed": True,
+            "candidate_target_armed": True,
+            "last_valid_price": None,
+            "reference_price": None,
+        }
+        _, candidate_events, _ = evaluate_quote(
+            p,
+            quote(78, PriceConfidence.PRODUCT_PAGE_PRICE.value),
+            state,
+            now="t1",
+        )
+        self.assertEqual("CANDIDATE_TARGET_REACHED", candidate_events[0].event_type)
+        self.assertTrue(state["target_armed"])
+        _, exact_events, _ = evaluate_quote(
+            p,
+            quote(78, PriceConfidence.EXACT_SKU_PRICE.value),
+            state,
+            now="t2",
+        )
+        self.assertEqual("TARGET_REACHED", exact_events[0].event_type)
+        self.assertFalse(state["target_armed"])
+
 
 if __name__ == "__main__":
     unittest.main()

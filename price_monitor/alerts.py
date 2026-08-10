@@ -61,7 +61,8 @@ def evaluate_quote(
     )
 
     target = cfg.get("target_price")
-    armed = bool(alert_state.get("target_armed", True))
+    arm_key = "target_armed" if formal_eligible else "candidate_target_armed"
+    armed = bool(alert_state.get(arm_key, True))
     if isinstance(target, (int, float)):
         target = float(target)
         if price <= target and armed:
@@ -85,9 +86,9 @@ def evaluate_quote(
                     ),
                 )
             )
-            alert_state["target_armed"] = False
+            alert_state[arm_key] = False
         elif price > target:
-            alert_state["target_armed"] = True
+            alert_state[arm_key] = True
 
     reference = alert_state.get("reference_price")
     if not isinstance(reference, (int, float)):

@@ -51,6 +51,7 @@ class StateStore:
             product_id,
             {
                 "target_armed": True,
+                "candidate_target_armed": True,
                 "last_valid_price": None,
                 "reference_price": None,
                 "last_alert_price": None,
