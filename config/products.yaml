@@ -40,8 +40,8 @@ products:
         - 充电线
     source:
       provider: maishou
-      # Provider-side IDs observed and detail-validated on 2026-08-10.
-      # They are discovery/cache hints only, not proof of canonical JD SKU identity.
+      # Provider-side request handles observed and detail-validated on 2026-08-10.
+      # Full goodsId prefixes changed between live runs, so these are cache hints.
       known_candidates:
         - goods_id: hd4KVC5N4yYCS3vqXWFYCS3vqXWFY4_3xcjcDDVDGKSVJmQFn
           goods_id_b: 3xcjcDDVDGKSVJmQFn
@@ -49,15 +49,22 @@ products:
           goods_id_b: 3nmugCitgMCAZO0wcs
         - goods_id: 8YQrR1IEI7MIBZWdJpfIIBZWdJpfIQ_391fhWgEXxrB4zqSXI
           goods_id_b: 391fhWgEXxrB4zqSXI
-      # This was the only tested search term that returned the target family.
-      # Use one bounded discovery search instead of four serial searches.
       discovery_keyword: 酷态科 65W 氮化镓
       mapping:
-        verified: false
+        verified: true
+        # Maishou-side stable-ish identity. This is NOT a public JD SKU.
+        provider_goods_id_b: 3nmugCitgMCAZO0wcs
+        # Legacy/full-ID pin intentionally left empty because the prefix changed
+        # between live runs.
         provider_goods_id: null
+        verified_at: "2026-08-10"
+        canonical_sku: "100068768088"
+        canonical_title: "CUKTECH酷态科65W氮化镓充电头USB/Type-C多口快充器适用40W苹果17小米/华为/三星/MacbookNeo/笔记本电脑"
         note: >-
-          canonical JD SKU is verified, but multiple Maishou provider entities
-          matched in smoke tests. Do not pin one without an explicit mapping check.
+          The canonical JD SKU is independently tied to the same full product
+          title and standalone package. Of the three Maishou candidates,
+          3nmugCitgMCAZO0wcs matches that canonical title exactly. See
+          docs/JD_MAPPING.md for evidence and caveats.
     alert:
       target_price: null
       significant_drop_pct: null

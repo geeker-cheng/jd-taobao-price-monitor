@@ -150,6 +150,8 @@ class MaishouSource(PriceSource):
         )
 
     def _stable_id(self, detail: dict) -> str:
+        # jdGoodsIdB is treated as a Maishou-side stable-ish identity only.
+        # It is NOT presented as a native public JD SKU.
         return str(_pick(detail, "jdGoodsIdB", "goodsIdB", "goodsId") or "")
 
     def _candidate_summary(self, key: str, detail: dict) -> dict:
@@ -314,12 +316,134 @@ class MaishouSource(PriceSource):
 
         return details, errors, False
 
+    def _discovery_keyword(self, source_cfg: dict) -> str:
+        discovery_keyword = source_cfg.get("discovery_keyword")
+        if not discovery_keyword:
+            keywords = source_cfg.get("search_keywords") or []
+            discovery_keyword = keywords[-1] if keywords else ""
+        return str(discovery_keyword or "")
+
+    def _fetch_verified_stable_mapping(
+        self,
+        product: dict,
+        source_cfg: dict,
+        mapped_stable_id: str,
+    ) -> Quote:
+        """Fetch a mapping pinned to jdGoodsIdB rather than volatile goodsId.
+
+        Full Maishou goodsId strings have changed prefixes between live runs while
+        jdGoodsIdB remained stable. A matching known candidate is therefore only
+        a request handle; the returned detail must still report mapped_stable_id.
+        """
+        known_candidates = source_cfg.get("known_candidates") or []
+        candidate = None
+        if isinstance(known_candidates, list):
+            candidate = next(
+                (
+                    item
+                    for item in known_candidates
+                    if str(item.get("goods_id_b") or "") == mapped_stable_id
+                ),
+                None,
+            )
+
+        recovery_errors: list[str] = []
+        if candidate:
+            goods_id = str(candidate.get("goods_id") or "")
+            if goods_id:
+                try:
+                    detail = self._detail(goods_id)
+                except requests.RequestException as exc:
+                    # Do not convert transport uncertainty into identity recovery:
+                    # fail fast and let the next scheduled run retry.
+                    return self._quote(
+                        product,
+                        "SOURCE_ERROR",
+                        confidence=PriceConfidence.UNVERIFIED.value,
+                        detail={
+                            "stage": "verified_mapping_detail",
+                            "mapped_goods_id_b": mapped_stable_id,
+                            "error": f"{type(exc).__name__}: {exc}",
+                        },
+                    )
+                except Exception as exc:
+                    recovery_errors.append(
+                        f"{goods_id}: {type(exc).__name__}: {exc}"
+                    )
+                else:
+                    if (
+                        self._valid_detail(product, detail)
+                        and self._stable_id(detail) == mapped_stable_id
+                    ):
+                        return self._detail_to_quote(
+                            product, detail, exact_mapping=True
+                        )
+                    recovery_errors.append(
+                        f"{goods_id}: mapped stable identity validation failed"
+                    )
+
+        # If the cached request handle became stale for a non-network reason,
+        # perform exactly one bounded discovery query and recover only the same
+        # previously verified stable identity.
+        keyword = self._discovery_keyword(source_cfg)
+        if keyword:
+            discovered, errors, transport_failed = self._discover_candidates(
+                product, keyword
+            )
+            recovery_errors.extend(errors)
+            if transport_failed:
+                return self._quote(
+                    product,
+                    "SOURCE_ERROR",
+                    confidence=PriceConfidence.UNVERIFIED.value,
+                    detail={
+                        "stage": "verified_mapping_discovery",
+                        "mapped_goods_id_b": mapped_stable_id,
+                        "errors": recovery_errors[:5],
+                    },
+                )
+            detail = discovered.get(mapped_stable_id)
+            if detail is not None:
+                return self._detail_to_quote(
+                    product, detail, exact_mapping=True
+                )
+            observed = [
+                self._candidate_summary(key, value)
+                for key, value in discovered.items()
+            ]
+        else:
+            observed = []
+
+        return self._quote(
+            product,
+            "MAPPED_ENTITY_NOT_FOUND",
+            confidence=PriceConfidence.UNVERIFIED.value,
+            detail={
+                "mapped_goods_id_b": mapped_stable_id,
+                "reason": (
+                    "The verified Maishou stable identity could not be recovered. "
+                    "No other candidate was substituted."
+                ),
+                "observed_candidates": observed,
+                "errors": recovery_errors[:5],
+            },
+        )
+
     def fetch(self, product: dict) -> Quote:
         source_cfg = product.get("source") or {}
         mapping = source_cfg.get("mapping") or {}
         mapped_goods_id = mapping.get("provider_goods_id")
+        mapped_stable_id = str(mapping.get("provider_goods_id_b") or "")
         mapping_verified = bool(mapping.get("verified"))
 
+        if mapping_verified and mapped_stable_id:
+            return self._fetch_verified_stable_mapping(
+                product, source_cfg, mapped_stable_id
+            )
+
+        # Legacy/full-ID mapping support for forks that already pinned a Maishou
+        # goodsId. New mappings should prefer provider_goods_id_b because the
+        # full goodsId has proven volatile between live runs.
         if mapped_goods_id and mapping_verified:
             try:
                 detail = self._detail(str(mapped_goods_id))
@@ -365,10 +489,7 @@ class MaishouSource(PriceSource):
         # Only one discovery query is used. Earlier smoke tests showed the more
         # specific AD653C/SKU queries returning no JD goods, while this query
         # returned the target family. This avoids four serial network waits.
-        discovery_keyword = source_cfg.get("discovery_keyword")
-        if not discovery_keyword:
-            keywords = source_cfg.get("search_keywords") or []
-            discovery_keyword = keywords[-1] if keywords else ""
+        discovery_keyword = self._discovery_keyword(source_cfg)
 
         if not discovery_keyword:
             if len(known_valid) == 1:
@@ -381,7 +502,7 @@ class MaishouSource(PriceSource):
             )
 
         discovered, discovery_errors, transport_failed = self._discover_candidates(
-            product, str(discovery_keyword)
+            product, discovery_keyword
         )
         if transport_failed:
             return self._quote(

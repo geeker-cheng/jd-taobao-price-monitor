@@ -104,7 +104,11 @@ JD_PRODUCT = {
     "source": {
         "provider": "maishou",
         "discovery_keyword": "酷态科 65W 氮化镓",
-        "mapping": {"verified": False, "provider_goods_id": None},
+        "mapping": {
+            "verified": False,
+            "provider_goods_id": None,
+            "provider_goods_id_b": None,
+        },
     },
     "shops": {"allowed": ["CUKTECH酷态科京东自营旗舰店"]},
     "match": {
@@ -116,12 +120,12 @@ JD_PRODUCT = {
 }
 
 
-def jd_detail(goods_id, stable_id, price):
+def jd_detail(goods_id, stable_id, price, *, title=None):
     return {
         "goodsId": goods_id,
         "goodsIdB": stable_id,
         "jdGoodsIdB": stable_id,
-        "title": "CUKTECH酷态科65W氮化镓多口Type-C充电器",
+        "title": title or "CUKTECH酷态科65W氮化镓多口Type-C充电器",
         "shopName": "CUKTECH酷态科京东自营旗舰店",
         "actualPrice": str(price),
         "originalPrice": str(price),
@@ -196,6 +200,86 @@ class SourceTests(unittest.TestCase):
         search_calls = [call for call in session.calls if call[0] == "search"]
         self.assertEqual(1, len(search_calls))
         self.assertEqual("酷态科 65W 氮化镓", search_calls[0][1])
+
+    def test_verified_stable_mapping_uses_only_matching_known_candidate(self):
+        product = copy.deepcopy(JD_PRODUCT)
+        product["source"]["known_candidates"] = [
+            {"goods_id": "g1", "goods_id_b": "b1"},
+            {"goods_id": "g2", "goods_id_b": "b2"},
+        ]
+        product["source"]["mapping"] = {
+            "verified": True,
+            "provider_goods_id": None,
+            "provider_goods_id_b": "b2",
+        }
+        session = FakeMaishouSession({
+            "g1": jd_detail("g1", "b1", 86.2),
+            "g2": jd_detail("g2-new-prefix", "b2", 77.7),
+        })
+        session.details["g2"] = jd_detail("g2-new-prefix", "b2", 77.7)
+        q = MaishouSource(invite_code="x", session=session).fetch(product)
+        self.assertEqual("OK", q.status)
+        self.assertEqual(PriceConfidence.EXACT_SKU_PRICE.value, q.confidence)
+        self.assertEqual(77.7, q.monitoring_price)
+        self.assertEqual("b2", q.detail["goods_id_b"])
+        self.assertEqual([("detail", "g2", TIMEOUT)], session.calls)
+
+    def test_verified_mapping_transport_error_fails_fast(self):
+        product = copy.deepcopy(JD_PRODUCT)
+        product["source"]["known_candidates"] = [
+            {"goods_id": "g2", "goods_id_b": "b2"},
+        ]
+        product["source"]["mapping"] = {
+            "verified": True,
+            "provider_goods_id": None,
+            "provider_goods_id_b": "b2",
+        }
+        session = FakeMaishouSession(
+            {"g2": jd_detail("g2", "b2", 77.7)},
+            transport_failures={"g2"},
+        )
+        q = MaishouSource(invite_code="x", session=session).fetch(product)
+        self.assertEqual("SOURCE_ERROR", q.status)
+        self.assertEqual("verified_mapping_detail", q.detail["stage"])
+        self.assertNotIn("search", [call[0] for call in session.calls])
+
+    def test_verified_mapping_recovers_same_stable_id_with_one_search(self):
+        product = copy.deepcopy(JD_PRODUCT)
+        product["source"]["known_candidates"] = [
+            {"goods_id": "stale", "goods_id_b": "b2"},
+        ]
+        product["source"]["mapping"] = {
+            "verified": True,
+            "provider_goods_id": None,
+            "provider_goods_id_b": "b2",
+        }
+        session = FakeMaishouSession({
+            "fresh": jd_detail("fresh", "b2", 78.0),
+        })
+        q = MaishouSource(invite_code="x", session=session).fetch(product)
+        self.assertEqual("OK", q.status)
+        self.assertEqual(PriceConfidence.EXACT_SKU_PRICE.value, q.confidence)
+        self.assertEqual(78.0, q.monitoring_price)
+        search_calls = [call for call in session.calls if call[0] == "search"]
+        self.assertEqual(1, len(search_calls))
+
+    def test_verified_mapping_never_substitutes_another_candidate(self):
+        product = copy.deepcopy(JD_PRODUCT)
+        product["source"]["known_candidates"] = [
+            {"goods_id": "stale", "goods_id_b": "b2"},
+        ]
+        product["source"]["mapping"] = {
+            "verified": True,
+            "provider_goods_id": None,
+            "provider_goods_id_b": "b2",
+        }
+        session = FakeMaishouSession({
+            "other": jd_detail("other", "b3", 60.0),
+        })
+        q = MaishouSource(invite_code="x", session=session).fetch(product)
+        self.assertEqual("MAPPED_ENTITY_NOT_FOUND", q.status)
+        self.assertIsNone(q.monitoring_price)
+        self.assertEqual("b2", q.detail["mapped_goods_id_b"])
 
     def test_maishou_network_budget_constants_are_short(self):
         self.assertLessEqual(TIMEOUT[0], 3)

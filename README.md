@@ -86,16 +86,58 @@ Shop requirement:
 CUKTECH酷态科京东自营旗舰店
 ```
 
-Earlier Maishou smoke tests found multiple self-operated provider entities with different prices for the same human-facing product. Therefore the production config deliberately leaves:
+The exact SKU mapping investigation is documented in:
+
+```text
+docs/JD_MAPPING.md
+```
+
+The current verified Maishou-side mapping is:
 
 ```yaml
 source:
   mapping:
-    verified: false
+    verified: true
+    provider_goods_id_b: 3nmugCitgMCAZO0wcs
     provider_goods_id: null
 ```
 
-The runtime will return `AMBIGUOUS_SOURCE_MAPPING` rather than picking the cheapest provider entity. Once an exact Maishou-provider → JD-SKU mapping is verified, pin it in config and set `verified: true`.
+`provider_goods_id_b` is a Maishou-side opaque/stable-ish identity. It is **not** described as a public JD SKU.
+
+Why the full `goodsId` is not pinned:
+
+- Multiple Maishou entities matched the human-facing 65W charger family.
+- The full `goodsId` prefix changed between separate live GitHub Actions runs.
+- `jdGoodsIdB` remained stable across those runs.
+- Independent sources tie JD SKU `100068768088` to the same full title returned by `3nmugCitgMCAZO0wcs`.
+
+Runtime behavior for a verified mapping is deliberately strict:
+
+```text
+known candidate for provider_goods_id_b
+        ↓
+detail request
+        ↓
+same stable identity + title/shop/self-operated checks
+        ↓
+EXACT_SKU_PRICE
+```
+
+If that cached request handle becomes stale for a non-network reason, the monitor performs at most one discovery search and accepts **only the same verified `provider_goods_id_b`**. It never substitutes another cheaper candidate.
+
+If the verified identity cannot be recovered, the result is:
+
+```text
+MAPPED_ENTITY_NOT_FOUND
+```
+
+If the request is uncertain because of a network error, the result is:
+
+```text
+SOURCE_ERROR
+```
+
+Neither state records a price sample.
 
 ### Taobao/Tmall
 
