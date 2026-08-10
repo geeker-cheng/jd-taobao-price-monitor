@@ -5,42 +5,40 @@ import re
 import sys
 import zipfile
 from datetime import datetime, timezone
-from urllib.parse import quote
 
 import requests
 
 API_KEY = os.environ.get("HAODANKU_API_KEY", "").strip()
 DOCS_ZIP_URL = "https://file.bc.haodanku.com/file/haodanku-openapi-docs.zip"
 TIMEOUT = (6, 15)
-TAOBAO_KEYWORDS = ["酷态科 AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]
-EXCLUDED = ("mini", "ultra", "屏显", "卡片", "90w", "100w", "套装", "套餐", "数据线", "充电线")
+KEYWORDS = ["酷态科 AD653C", "酷态科 65W 氮化镓", "CUKTECH 65W 氮化镓"]
+EXCLUDED = ("mini", "ultra", "屏显", "卡片", "90w", "100w", "套装", "套餐", "数据线", "充电线", "充电宝")
 
 
 def redact(text):
     value = str(text)
-    if API_KEY:
-        value = value.replace(API_KEY, "***")
-    return value
+    return value.replace(API_KEY, "***") if API_KEY else value
 
 
 def compact(text):
     return str(text or "").lower().replace(" ", "").replace("-", "")
 
 
-def looks_like_target(title):
-    value = compact(title)
-    brand = "酷态科" in value or "cuktech" in value
-    model = "ad653c" in value or ("65w" in value and ("2c1a" in value or "三口" in value or "多口" in value or "氮化镓" in value))
-    return brand and model and not any(compact(term) in value for term in EXCLUDED)
+def pick(item, *keys):
+    if not isinstance(item, dict):
+        return None
+    for key in keys:
+        value = item.get(key)
+        if value not in (None, ""):
+            return value
+    return None
 
 
 def find_goods(obj):
     found = []
     if isinstance(obj, dict):
         keys = set(obj)
-        id_keys = {"itemid", "item_id", "goods_id", "goodsId", "sku_id", "skuId"}
-        title_keys = {"itemtitle", "title", "goods_name", "goodsName", "goodsname"}
-        if keys & id_keys and keys & title_keys:
+        if keys & {"itemid", "item_id", "goods_id", "goodsId"} and keys & {"itemtitle", "title", "goodsname", "goodsName"}:
             found.append(obj)
         for value in obj.values():
             found.extend(find_goods(value))
@@ -50,169 +48,129 @@ def find_goods(obj):
     return found
 
 
-def pick(item, *keys):
-    for key in keys:
-        value = item.get(key)
-        if value not in (None, ""):
-            return value
-    return None
-
-
-def normalized_item(item):
+def normalize(item):
     return {
-        "id": pick(item, "itemid", "item_id", "goods_id", "goodsId", "sku_id", "skuId"),
-        "title": pick(item, "itemtitle", "title", "goods_name", "goodsName", "goodsname"),
-        "shop": pick(item, "shopname", "shop_name", "shopName", "seller_name"),
-        "brand": pick(item, "brand_name", "brandName", "brand"),
-        "price": pick(item, "itemprice", "price", "actual_price", "actualPrice"),
-        "coupon_price": pick(item, "couponmoney", "coupon_price", "couponPrice"),
+        "id": pick(item, "itemid", "item_id", "goods_id", "goodsId"),
+        "title": pick(item, "itemtitle", "title", "goodsname", "goodsName"),
+        "short_title": pick(item, "itemshorttitle", "short_title"),
+        "shop": pick(item, "shopname", "shop_name", "shopName"),
+        "price": pick(item, "itemprice", "price"),
         "final_price": pick(item, "itemendprice", "end_price", "final_price"),
-        "is_tmall": pick(item, "shoptype", "is_tmall", "istmall"),
+        "coupon": pick(item, "couponmoney", "coupon_price", "couponPrice"),
     }
 
 
-def response_summary(response):
-    try:
-        body = response.json()
-    except Exception:
-        body = None
-    goods = [normalized_item(x) for x in find_goods(body)]
-    return body, goods, {
-        "http": response.status_code,
-        "api_code": pick(body, "code", "status") if isinstance(body, dict) else None,
-        "api_msg": pick(body, "msg", "message") if isinstance(body, dict) else None,
-        "result_count": len(goods),
-        "top_results": goods[:10],
-        "candidates": [x for x in goods if looks_like_target(x.get("title"))][:10],
-        "ok": response.ok and isinstance(body, dict),
-    }
+def target_candidate(item):
+    title = compact(item.get("title"))
+    shop = compact(item.get("shop"))
+    brand_ok = "酷态科" in title or "cuktech" in title
+    power_ok = "65w" in title
+    multiport_ok = "多口" in title or "2c1a" in title or "双typec" in title or "三口" in title
+    excluded = any(compact(term) in title for term in EXCLUDED)
+    flagship = ("酷态科" in shop or "cuktech" in shop) and "旗舰店" in shop
+    return brand_ok and power_ok and multiport_ok and not excluded and flagship
 
 
-def double_encode(value):
-    return quote(quote(value, safe=""), safe="")
-
-
-def call_taobao_supersearch(keyword):
-    encoded = double_encode(keyword)
-    url = (
-        "http://v2.api.haodanku.com/supersearch/"
-        f"apikey/{API_KEY}/keyword/{encoded}/back/20/min_id/1/"
-        "tb_p/1/sort/0/is_tmall/1/is_coupon/0/limitrate/0"
-    )
-    try:
-        response = requests.get(url, timeout=TIMEOUT, allow_redirects=True)
-        _, _, summary = response_summary(response)
-        summary["keyword"] = keyword
-        return summary
-    except Exception as exc:
-        return {
-            "keyword": keyword,
-            "http": None,
-            "api_code": None,
-            "api_msg": None,
-            "result_count": 0,
-            "top_results": [],
-            "candidates": [],
-            "ok": False,
-            "error": redact(f"{type(exc).__name__}: {exc}"),
-        }
-
-
-def section_from_markdown(text, heading):
-    pattern = re.compile(rf"^###\s+{re.escape(heading)}\s*$", re.MULTILINE)
-    match = pattern.search(text)
+def markdown_section(text, heading):
+    match = re.search(rf"^###\s+{re.escape(heading)}\s*$", text, re.MULTILINE)
     if not match:
         return None
     tail = text[match.end():]
-    next_heading = re.search(r"^###\s+", tail, re.MULTILINE)
-    section = text[match.start(): match.end() + (next_heading.start() if next_heading else len(tail))]
-    return section.strip()
+    next_match = re.search(r"^###\s+", tail, re.MULTILINE)
+    end = match.end() + (next_match.start() if next_match else len(tail))
+    return text[match.start():end].strip()
 
 
-def parse_interface_section(section):
+def parse_section(section):
     if not section:
         return None
 
     def field(label):
-        match = re.search(rf"^-\s*{re.escape(label)}：\s*(.+)$", section, re.MULTILINE)
-        return match.group(1).strip() if match else None
+        m = re.search(rf"^-\s*{re.escape(label)}：\s*(.+)$", section, re.MULTILINE)
+        return m.group(1).strip() if m else None
 
     return {
-        "heading": section.splitlines()[0].lstrip("# ").strip(),
-        "permission": field("权限要求"),
         "method": field("请求方式"),
         "path": field("接口路径"),
         "required": field("必填参数"),
         "optional": field("可选参数"),
         "return_fields": field("返回核心字段"),
-        "official_doc": (re.search(r"官方文档地址：(https?://\S+)", section).group(1).rstrip("。")
-                         if re.search(r"官方文档地址：(https?://\S+)", section) else None),
+        "permission": field("权限要求"),
     }
 
 
-def download_product_docs():
-    result = {"download_ok": False, "http": None, "interfaces": {}}
-    try:
-        response = requests.get(DOCS_ZIP_URL, timeout=TIMEOUT)
-        result["http"] = response.status_code
-        response.raise_for_status()
-        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-            product_name = next(
-                name for name in archive.namelist()
-                if name.replace("\\", "/").endswith("interfaces/商品接口.md")
-            )
-            text = archive.read(product_name).decode("utf-8", errors="replace")
-            for heading in ["淘宝商品搜索", "京东商品搜索/详情", "拼多多商品搜索/详情"]:
-                section = section_from_markdown(text, heading)
-                result["interfaces"][heading] = parse_interface_section(section)
-            result["download_ok"] = True
-    except Exception as exc:
-        result["error"] = redact(f"{type(exc).__name__}: {exc}")
-    return result
+def load_taobao_docs():
+    response = requests.get(DOCS_ZIP_URL, timeout=TIMEOUT)
+    response.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        name = next(n for n in archive.namelist() if n.replace("\\", "/").endswith("interfaces/商品接口.md"))
+        text = archive.read(name).decode("utf-8", errors="replace")
+    return {
+        "search": parse_section(markdown_section(text, "淘宝商品搜索")),
+        "detail": parse_section(markdown_section(text, "淘宝单品详情")),
+    }
 
 
-def call_documented_interface(interface, keyword):
-    if not interface or not interface.get("path"):
-        return {"called": False, "reason": "official interface path not found"}
-    method = (interface.get("method") or "").upper()
-    if method != "GET":
-        return {"called": False, "reason": f"documented method is {method or 'unknown'}, not GET"}
+def endpoint_url(path):
+    if not path:
+        return None
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    return "https://" + path.lstrip("/")
 
-    path = interface["path"].strip()
-    if not path.startswith("http://") and not path.startswith("https://"):
-        path = "https://" + path.lstrip("/")
 
-    section_text = " ".join(str(interface.get(k) or "") for k in ("required", "optional"))
-    params = {"apikey": API_KEY}
-    if "keyword" in section_text:
-        params["keyword"] = keyword
-    if "min_id" in section_text:
+def search(keyword, spec):
+    params = {"apikey": API_KEY, "keyword": keyword}
+    optional = spec.get("optional") or ""
+    if "min_id" in optional:
         params["min_id"] = 1
-    if "back" in section_text:
-        params["back"] = 20
-    if "sort" in section_text:
-        params["sort"] = 0
+    if "back" in optional:
+        params["back"] = 50
+    try:
+        response = requests.get(endpoint_url(spec["path"]), params=params, timeout=TIMEOUT)
+        body = response.json()
+        goods = [normalize(x) for x in find_goods(body)]
+        return {
+            "keyword": keyword,
+            "http": response.status_code,
+            "code": pick(body, "code", "status"),
+            "msg": pick(body, "msg", "message"),
+            "count": len(goods),
+            "official_store_results": [x for x in goods if ("酷态科" in compact(x.get("shop")) or "cuktech" in compact(x.get("shop"))) and "旗舰店" in compact(x.get("shop"))][:15],
+            "candidates": [x for x in goods if target_candidate(x)][:10],
+        }
+    except Exception as exc:
+        return {"keyword": keyword, "error": redact(f"{type(exc).__name__}: {exc}"), "candidates": []}
+
+
+def detail(item, spec):
+    required = (spec.get("required") or "").lower()
+    params = {"apikey": API_KEY}
+    if "itemid" in required:
+        params["itemid"] = item["id"]
+    elif "item_id" in required:
+        params["item_id"] = item["id"]
+    else:
+        return {"search_item": item, "called": False, "reason": f"unrecognized documented required params: {spec.get('required')}"}
 
     try:
-        response = requests.get(path, params=params, timeout=TIMEOUT, allow_redirects=True)
-        _, _, summary = response_summary(response)
-        summary.update({
-            "called": True,
-            "keyword": keyword,
-            "documented_path": interface["path"],
-            "documented_permission": interface.get("permission"),
-        })
-        return summary
-    except Exception as exc:
+        response = requests.get(endpoint_url(spec["path"]), params=params, timeout=TIMEOUT)
+        body = response.json()
+        goods = [normalize(x) for x in find_goods(body)]
+        text = json.dumps(body, ensure_ascii=False)
+        terms = ["AD653C", "2C1A", "65W", "灰色", "单体", "三口", "多口"]
         return {
+            "search_item": item,
             "called": True,
-            "keyword": keyword,
-            "documented_path": interface["path"],
-            "documented_permission": interface.get("permission"),
-            "http": None,
-            "ok": False,
-            "error": redact(f"{type(exc).__name__}: {exc}"),
+            "http": response.status_code,
+            "code": pick(body, "code", "status"),
+            "msg": pick(body, "msg", "message"),
+            "normalized_goods": goods[:5],
+            "term_hits": {term: term.lower() in text.lower() for term in terms},
+            "response_preview": redact(text)[:3500],
         }
+    except Exception as exc:
+        return {"search_item": item, "called": True, "error": redact(f"{type(exc).__name__}: {exc}")}
 
 
 def main():
@@ -220,41 +178,38 @@ def main():
         print("ERROR: HAODANKU_API_KEY is not available to this workflow.")
         return 2
 
-    docs = download_product_docs()
-    taobao_results = [call_taobao_supersearch(keyword) for keyword in TAOBAO_KEYWORDS]
+    docs = load_taobao_docs()
+    searches = [search(keyword, docs["search"]) for keyword in KEYWORDS]
 
-    jd_interface = docs.get("interfaces", {}).get("京东商品搜索/详情")
-    pdd_interface = docs.get("interfaces", {}).get("拼多多商品搜索/详情")
+    seen = set()
+    candidates = []
+    for result in searches:
+        for item in result.get("candidates", []):
+            if item.get("id") and item["id"] not in seen:
+                seen.add(item["id"])
+                candidates.append(item)
 
-    jd_results = [
-        call_documented_interface(jd_interface, "100068768088"),
-        call_documented_interface(jd_interface, "酷态科 AD653C"),
-    ]
-    pdd_results = [
-        call_documented_interface(pdd_interface, "酷态科 AD653C"),
-        call_documented_interface(pdd_interface, "酷态科 65W 2C1A"),
-    ]
+    details = [detail(item, docs["detail"]) for item in candidates[:5]]
 
     report = {
         "tested_at": datetime.now(timezone.utc).isoformat(),
-        "stage": "haodanku-platform-permission-and-product-probe",
+        "stage": "haodanku-taobao-exact-product-detail",
         "target": "CUKTECH/酷态科 AD653C 65W 2C1A 老款方形充电器，灰色单体版",
         "secret_present": True,
         "secret_value_logged": False,
         "official_docs": docs,
-        "taobao": taobao_results,
-        "jd": jd_results,
-        "pdd": pdd_results,
+        "searches": searches,
+        "candidate_count": len(candidates),
+        "details": details,
         "notes": [
-            "No affiliate conversion, purchase-link, order, or promotion-link endpoint is called.",
-            "JD/PDD paths and parameter names are read from Haodanku's official documentation package at runtime.",
-            "The API key is read only from HAODANKU_API_KEY and is never intentionally written to output.",
+            "Only Haodanku ordinary Taobao search/detail endpoints are called.",
+            "No conversion, promotion-link, order, or purchase-link endpoint is called.",
+            "Only brand flagship-store results are eligible for detail verification.",
         ],
     }
 
     with open("haodanku-probe-result.json", "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=2)
-
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
