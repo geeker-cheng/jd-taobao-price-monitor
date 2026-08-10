@@ -6,6 +6,7 @@ import sys
 
 from .config import ConfigError, load_config
 from .engine import MonitorEngine
+from .security import STATE_FILENAMES, scan_state_directory
 from .state import StateStore
 
 
@@ -19,11 +20,34 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="Run all MONITORING products once")
     run.add_argument("--config", default="config/products.yaml")
     run.add_argument("--data-dir", default="data")
+
+    scan = sub.add_parser(
+        "scan-state",
+        help="Fail if public state files contain unredacted sensitive material",
+    )
+    scan.add_argument("--data-dir", default="data")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.command == "scan-state":
+        issues = scan_state_directory(args.data_dir)
+        if issues:
+            print(
+                "SENSITIVE_STATE_DETECTED: " + ", ".join(issues),
+                file=sys.stderr,
+            )
+            return 3
+        print(
+            json.dumps(
+                {"ok": True, "checked_files": list(STATE_FILENAMES)},
+                ensure_ascii=False,
+            )
+        )
+        return 0
+
     try:
         config = load_config(args.config)
     except (OSError, ConfigError, ValueError) as exc:
