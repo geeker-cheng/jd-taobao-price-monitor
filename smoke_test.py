@@ -15,10 +15,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 AppleWebKit/537 Chrome/143 Safari/537",
 }
 
-# Target confirmed by the user:
-# CUKTECH / 酷态科 AD653C 65W GaN charger, old square 2C1A model,
-# standalone charger only. Explicitly exclude newer mini / Ultra / card-style
-# products and bundles.
 TARGET = {
     "brand_terms": ["酷态科", "cuktech"],
     "exact_model_terms": ["ad653c"],
@@ -95,7 +91,6 @@ def contains_any(text, terms):
 
 def product_matches(goods):
     title = goods.get("title") or ""
-    value = compact(title)
     brand_ok = contains_any(title, TARGET["brand_terms"])
     exact_model = contains_any(title, TARGET["exact_model_terms"])
     descriptive_model = (
@@ -114,10 +109,6 @@ def store_matches(platform, goods):
     if platform == "jd":
         return "自营" in shop or (brand_ok and "旗舰店" in shop)
     return brand_ok and ("旗舰店" in shop or "官方" in shop)
-
-
-def eligible(platform, goods):
-    return product_matches(goods) and store_matches(platform, goods)
 
 
 def call_search(source_type, keyword):
@@ -146,11 +137,10 @@ def call_search(source_type, keyword):
         "api_message": body.get("message") if isinstance(body, dict) else None,
         "goods_count": len(goods),
         "goods": goods,
-        "raw_preview": response.text[:500],
     }
 
 
-def safe_call(source_type, keyword):
+def safe_search(source_type, keyword):
     try:
         return call_search(source_type, keyword)
     except Exception as exc:
@@ -165,6 +155,70 @@ def safe_call(source_type, keyword):
         }
 
 
+def call_detail(source_type, goods_id):
+    # Mirrors the current public Maishou skill's detail request, but intentionally
+    # does NOT call msapi /share/getTargetUrl.
+    params = {
+        "goodsId": str(goods_id),
+        "sourceType": str(source_type),
+        "inviteCode": PUBLIC_INVITE_CODE,
+        "supplierCode": "",
+        "activityId": "",
+        "isShare": "1",
+        "token": "",
+        "keyword": "",
+        "usageScene": 5,
+    }
+    response = requests.post(
+        BASE_URL + "/api/v3/goods/detail",
+        headers=HEADERS,
+        json=params,
+        timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
+    )
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+    data = body.get("data") if isinstance(body, dict) else None
+    data = data if isinstance(data, dict) else {}
+    important = {
+        key: data.get(key)
+        for key in [
+            "goodsId", "title", "shopName", "platformName", "actualPrice",
+            "originalPrice", "couponPrice", "sourceType", "jdGoodsIdB",
+            "jdGoodsId", "tbGoodsIdB", "tbGoodsId", "pddGoodsId",
+            "supplierCode", "activityId", "desc", "specialText",
+        ]
+        if key in data
+    }
+    return {
+        "http": response.status_code,
+        "api_status": body.get("status") if isinstance(body, dict) else None,
+        "api_code": body.get("code") if isinstance(body, dict) else None,
+        "api_message": body.get("message") if isinstance(body, dict) else None,
+        "data_keys": sorted(data.keys()),
+        "important": important,
+        "data_preview": json.dumps(data, ensure_ascii=False)[:2500],
+        "ok": response.status_code == 200 and bool(data),
+    }
+
+
+def safe_detail(source_type, goods_id):
+    try:
+        return call_detail(source_type, goods_id)
+    except Exception as exc:
+        return {
+            "http": None,
+            "api_status": None,
+            "api_code": None,
+            "api_message": None,
+            "data_keys": [],
+            "important": {},
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+
 def main():
     platform_results = []
 
@@ -175,7 +229,7 @@ def main():
         attempts = []
 
         for keyword in keywords:
-            result = safe_call(source_type, keyword)
+            result = safe_search(source_type, keyword)
             attempts.append({
                 "keyword": keyword,
                 "http": result.get("http"),
@@ -191,17 +245,31 @@ def main():
                     seen.add(key)
                     all_goods.append(item)
             print("ATTEMPT", json.dumps(attempts[-1], ensure_ascii=False))
-
-            current_eligible = [x for x in all_goods if eligible(platform, x)]
-            if current_eligible:
+            if [x for x in all_goods if product_matches(x)]:
                 break
             time.sleep(0.4)
 
-        product_candidates = [x for x in all_goods if product_matches(x)]
-        eligible_matches = [x for x in all_goods if eligible(platform, x)]
+        product_candidates = [x for x in all_goods if product_matches(x)][:3]
+        detail_results = []
+        for item in product_candidates:
+            detail = safe_detail(source_type, item.get("goods_id"))
+            detail_results.append({
+                "search_item": item,
+                "detail": detail,
+            })
+            print("DETAIL", json.dumps(detail_results[-1], ensure_ascii=False, indent=2))
+            time.sleep(0.3)
 
-        print("PRODUCT_CANDIDATES", json.dumps(product_candidates, ensure_ascii=False, indent=2))
-        print("ELIGIBLE_MATCHES", json.dumps(eligible_matches, ensure_ascii=False, indent=2))
+        eligible_after_detail = []
+        for pair in detail_results:
+            item = dict(pair["search_item"])
+            important = pair["detail"].get("important") or {}
+            if important.get("shopName"):
+                item["shopName"] = important.get("shopName")
+            if important.get("title"):
+                item["title"] = important.get("title")
+            if product_matches(item) and store_matches(platform, item):
+                eligible_after_detail.append(pair)
 
         platform_results.append({
             "platform": platform,
@@ -209,17 +277,19 @@ def main():
             "attempts": attempts,
             "unique_goods_count": len(all_goods),
             "product_candidates": product_candidates,
-            "eligible_matches": eligible_matches,
-            "passed": bool(eligible_matches),
+            "detail_results": detail_results,
+            "eligible_after_detail": eligible_after_detail,
+            "passed_search": bool(product_candidates),
+            "passed_store_validation": bool(eligible_after_detail),
         })
 
     report = {
         "tested_at": datetime.now(timezone.utc).isoformat(),
-        "endpoint": "/api/v1/homepage/searchList",
+        "search_endpoint": "/api/v1/homepage/searchList",
+        "detail_endpoint": "/api/v3/goods/detail",
         "public_invite_code": PUBLIC_INVITE_CODE,
         "target": "CUKTECH/酷态科 AD653C 65W GaN 2C1A 老款方形充电器，单体",
-        "store_requirement": "京东自营或品牌旗舰店；淘宝/拼多多要求酷态科/CUKTECH官方或旗舰店",
-        "excluded": "mini / Ultra / 屏显 / 卡片 / 90W / 100W / 套装 / 线材 / 电池",
+        "note": "No share/purchase-link endpoint was called.",
         "results": platform_results,
     }
 
