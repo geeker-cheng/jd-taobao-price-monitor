@@ -1,0 +1,54 @@
+name: Price monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_live:
+        description: "Run live JD/Taobao collection after tests"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Validate product config
+        run: python -m price_monitor.cli validate
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run live collection
+        if: ${{ inputs.run_live }}
+        env:
+          HAODANKU_API_KEY: ${{ secrets.HAODANKU_API_KEY }}
+          MAISHOU_INVITE_CODE: ${{ secrets.MAISHOU_INVITE_CODE }}
+        run: python -m price_monitor.cli run
+
+      - name: Upload live state
+        if: ${{ inputs.run_live }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-monitor-state
+          path: |
+            data/price_status.json
+            data/price_history.json
+            data/alert_state.json
+          retention-days: 3

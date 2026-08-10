@@ -1,0 +1,105 @@
+version: 1
+history_limit: 365
+
+products:
+  - id: cuktech_ad653c_jd
+    enabled: true
+    status: MONITORING
+    platform: jd
+    name: 酷态科 AD653C 65W 氮化镓充电器（京东）
+    canonical_url: https://item.jd.com/100068768088.html
+    identifiers:
+      sku_id: "100068768088"
+      model: AD653C
+    variant:
+      power: 65W
+      ports: 2C1A
+      color: 灰色
+      package: 单体
+    shops:
+      allowed:
+        - CUKTECH酷态科京东自营旗舰店
+      require_self_operated: true
+    match:
+      required_title_groups:
+        - [CUKTECH, 酷态科]
+        - [65W, 65瓦]
+        - [氮化镓]
+        - [多口, 三口, 2C1A, Type-C, USB/Type-C]
+      excluded_title_terms:
+        - mini
+        - Ultra
+        - 屏显
+        - 卡片
+        - 电能卡片
+        - 90W
+        - 100W
+        - 套装
+        - 套餐
+        - 数据线
+        - 充电线
+    source:
+      provider: maishou
+      search_keywords:
+        - "100068768088"
+        - 酷态科 AD653C
+        - 酷态科 65W 2C1A
+        - 酷态科 65W 氮化镓
+      mapping:
+        verified: false
+        provider_goods_id: null
+        note: >-
+          canonical JD SKU is verified, but multiple Maishou provider entities
+          matched in smoke tests. Do not pin one without an explicit mapping check.
+    alert:
+      target_price: null
+      significant_drop_pct: null
+      anomaly_drop_pct: 0.25
+      allow_product_page_alerts: false
+
+  - id: cuktech_ad653c_tmall
+    enabled: true
+    status: MONITORING
+    platform: taobao
+    name: 酷态科 AD653C 65W 氮化镓充电器（淘宝/天猫）
+    identifiers:
+      model: AD653C
+    variant:
+      power: 65W
+      ports: 2C1A
+      color: 灰色
+      package: 单体
+    shops:
+      allowed:
+        - CUKTECH酷态科旗舰店
+      require_self_operated: false
+    match:
+      required_title_groups:
+        - [CUKTECH, 酷态科]
+        - [65W, 65瓦]
+        - [氮化镓]
+        - [多口, 三口, 2C1A, 双Type-C]
+      excluded_title_terms:
+        - mini
+        - Ultra
+        - 屏显
+        - 卡片
+        - 电能卡片
+        - 90W
+        - 100W
+        - 套装
+        - 套餐
+        - 数据线
+        - 充电线
+        - 充电宝
+    source:
+      provider: haodanku
+      search_keywords:
+        - 酷态科 AD653C
+        - 酷态科 65W 氮化镓
+        - CUKTECH 65W 氮化镓
+    alert:
+      target_price: null
+      significant_drop_pct: null
+      anomaly_drop_pct: 0.25
+      allow_product_page_alerts: false

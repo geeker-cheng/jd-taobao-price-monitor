@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+
+# Secrets / local overrides
+.env
+.env.*
+!.env.example
+
+# Temporary runtime files
+*.tmp
