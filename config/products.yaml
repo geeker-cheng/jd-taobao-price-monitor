@@ -111,3 +111,69 @@ products:
       enabled: false
       target_price: null
       significant_drop_pct: null
+
+  - id: vivo_x200s_12_512_jd
+    enabled: true
+    status: MONITORING
+    platform: jd
+    name: vivo X200s 12GB+512GB（京东自营，任意颜色）
+    # Representative official self-operated 12GB+512GB SKU (薄荷蓝).
+    # Monitoring itself accepts all four configured colors below.
+    canonical_url: https://item.jd.com/100198968078.html
+    identifiers:
+      model: X200s
+      memory: 12GB+512GB
+    variant:
+      memory: 12GB+512GB
+      colors:
+        - 直白
+        - 淡紫
+        - 薄荷蓝
+        - 简黑
+      color_policy: 任意颜色
+    shops:
+      allowed:
+        - vivo京东自营旗舰店
+      require_self_operated: true
+    match:
+      required_title_groups:
+        - [vivo]
+        - [X200s, X200S]
+        - [12GB+512GB, 12GB512GB, 12G+512G, 12G512G, 12+512GB, 12+512G]
+        - [直白, 淡紫, 薄荷蓝, 简黑]
+      excluded_title_terms:
+        - 12GB+256GB
+        - 12G+256G
+        - 12+256G
+        - 16GB+512GB
+        - 16G+512G
+        - 16+512G
+        - 16GB+1TB
+        - 16G+1T
+        - 16+1T
+        - 二手
+        - 官换
+        - 展示机
+        - 套装
+        - 合约机
+    source:
+      provider: maishou
+      discovery_keyword: vivo X200s
+      discovery_detail_limit: 6
+      selection:
+        mode: lowest_price
+        scope: configured_variant_family
+        note: >-
+          The user accepts any of the four configured colors. Select the lowest
+          positive price only among title/shop/self-operated validated 12GB+512GB
+          candidates; do not substitute another memory tier or non-target shop.
+      mapping:
+        verified: false
+        provider_goods_id_b: null
+        provider_goods_id: null
+    alert:
+      # GPT scheduled task handles the user-facing <3000 CNY notification.
+      # Repository alert execution remains intentionally disabled.
+      enabled: false
+      target_price: null
+      significant_drop_pct: null

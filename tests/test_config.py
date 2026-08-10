@@ -29,7 +29,11 @@ class ConfigTests(unittest.TestCase):
     def test_current_config_valid_and_has_only_supported_platforms(self):
         cfg = load_config("config/products.yaml")
         self.assertEqual({"jd", "taobao"}, {p["platform"] for p in cfg["products"]})
-        self.assertEqual(2, len(monitorable_products(cfg)))
+        self.assertEqual(3, len(monitorable_products(cfg)))
+        x200s = next(p for p in cfg["products"] if p["id"] == "vivo_x200s_12_512_jd")
+        self.assertEqual("lowest_price", x200s["source"]["selection"]["mode"])
+        self.assertEqual("12GB+512GB", x200s["variant"]["memory"])
+        self.assertEqual({"直白", "淡紫", "薄荷蓝", "简黑"}, set(x200s["variant"]["colors"]))
 
     def test_rejects_pdd(self):
         with self.assertRaises(ConfigError):

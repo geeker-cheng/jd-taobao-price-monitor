@@ -1,4 +1,4 @@
 from .haodanku import HaodankuSource
-from .maishou import MaishouSource
+from .maishou_family import MaishouSource
 
 __all__ = ["HaodankuSource", "MaishouSource"]
