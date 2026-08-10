@@ -40,11 +40,18 @@ products:
         - 充电线
     source:
       provider: maishou
-      search_keywords:
-        - "100068768088"
-        - 酷态科 AD653C
-        - 酷态科 65W 2C1A
-        - 酷态科 65W 氮化镓
+      # Provider-side IDs observed and detail-validated on 2026-08-10.
+      # They are discovery/cache hints only, not proof of canonical JD SKU identity.
+      known_candidates:
+        - goods_id: hd4KVC5N4yYCS3vqXWFYCS3vqXWFY4_3xcjcDDVDGKSVJmQFn
+          goods_id_b: 3xcjcDDVDGKSVJmQFn
+        - goods_id: Jx8CO9GFGZU2AFBTBo432AFBTBo438_3nmugCitgMCAZO0wcs
+          goods_id_b: 3nmugCitgMCAZO0wcs
+        - goods_id: 8YQrR1IEI7MIBZWdJpfIIBZWdJpfIQ_391fhWgEXxrB4zqSXI
+          goods_id_b: 391fhWgEXxrB4zqSXI
+      # This was the only tested search term that returned the target family.
+      # Use one bounded discovery search instead of four serial searches.
+      discovery_keyword: 酷态科 65W 氮化镓
       mapping:
         verified: false
         provider_goods_id: null

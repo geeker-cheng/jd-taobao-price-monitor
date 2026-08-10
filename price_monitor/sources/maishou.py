@@ -17,7 +17,13 @@ DETAIL_PATH = "/api/v3/goods/detail"
 # Public third-party referral/invite code used as a reproducible default.
 # Users can override it with MAISHOU_INVITE_CODE. See README disclosure.
 DEFAULT_PUBLIC_INVITE_CODE = "6110440"
-TIMEOUT = (6, 12)
+
+# Maishou reachability from GitHub-hosted runners is not stable. Keep each
+# request short so a transient regional routing problem cannot consume most
+# of the workflow's hard timeout.
+TIMEOUT = (2.5, 5)
+DISCOVERY_DETAIL_LIMIT = 3
+
 HEADERS = {
     "Accept": "application/json",
     "Referer": "https://hnbc018.kuaizhan.com/",
@@ -136,6 +142,53 @@ class MaishouSource(PriceSource):
             raise RuntimeError(f"Maishou search failed: {body}")
         return _find_goods_list(body)
 
+    def _valid_detail(self, product: dict, detail: dict) -> bool:
+        return (
+            title_matches(_pick(detail, "title", "goodsName"), product)
+            and shop_matches(_pick(detail, "shopName"), product)
+            and jd_self_operated(detail)
+        )
+
+    def _stable_id(self, detail: dict) -> str:
+        return str(_pick(detail, "jdGoodsIdB", "goodsIdB", "goodsId") or "")
+
+    def _candidate_summary(self, key: str, detail: dict) -> dict:
+        return {
+            "goods_id_b": key,
+            "goods_id": _pick(detail, "goodsId"),
+            "title": _pick(detail, "title"),
+            "shop": _pick(detail, "shopName"),
+            "price": _float(_pick(detail, "actualPrice")),
+        }
+
+    def _ambiguous_quote(
+        self,
+        product: dict,
+        candidates: dict[str, dict],
+        *,
+        errors: list[str] | None = None,
+        candidate_source: str,
+    ) -> Quote:
+        return self._quote(
+            product,
+            "AMBIGUOUS_SOURCE_MAPPING",
+            confidence=PriceConfidence.UNVERIFIED.value,
+            detail={
+                "canonical_sku": (product.get("identifiers") or {}).get("sku_id"),
+                "candidate_count": len(candidates),
+                "candidate_source": candidate_source,
+                "candidates": [
+                    self._candidate_summary(key, value)
+                    for key, value in candidates.items()
+                ],
+                "reason": (
+                    "Multiple Maishou provider entities match; exact canonical "
+                    "JD SKU mapping has not been verified."
+                ),
+                "errors": (errors or [])[:5],
+            },
+        )
+
     def _detail_to_quote(
         self,
         product: dict,
@@ -145,11 +198,7 @@ class MaishouSource(PriceSource):
     ) -> Quote:
         title = _pick(detail, "title", "goodsName")
         shop = _pick(detail, "shopName")
-        if (
-            not title_matches(title, product)
-            or not shop_matches(shop, product)
-            or not jd_self_operated(detail)
-        ):
+        if not self._valid_detail(product, detail):
             return self._quote(
                 product,
                 "VALIDATION_FAILED",
@@ -180,6 +229,91 @@ class MaishouSource(PriceSource):
             },
         )
 
+    def _probe_known_candidates(
+        self,
+        product: dict,
+        known_candidates: list[dict],
+    ) -> tuple[dict[str, dict], list[str], list[str]]:
+        """Return (valid_details, transport_errors, stale_or_invalid_errors)."""
+        valid: dict[str, dict] = {}
+        transport_errors: list[str] = []
+        other_errors: list[str] = []
+
+        for candidate in known_candidates:
+            goods_id = str(candidate.get("goods_id") or "")
+            expected_stable_id = str(candidate.get("goods_id_b") or "")
+            if not goods_id:
+                continue
+            try:
+                detail = self._detail(goods_id)
+            except requests.RequestException as exc:
+                transport_errors.append(
+                    f"{goods_id}: {type(exc).__name__}: {exc}"
+                )
+                continue
+            except Exception as exc:
+                other_errors.append(
+                    f"{goods_id}: {type(exc).__name__}: {exc}"
+                )
+                continue
+
+            if not self._valid_detail(product, detail):
+                other_errors.append(f"{goods_id}: detail validation failed")
+                continue
+
+            stable_id = self._stable_id(detail)
+            if expected_stable_id and stable_id != expected_stable_id:
+                other_errors.append(
+                    f"{goods_id}: stable id changed from "
+                    f"{expected_stable_id} to {stable_id or '<empty>'}"
+                )
+                continue
+            if stable_id:
+                valid[stable_id] = detail
+
+        return valid, transport_errors, other_errors
+
+    def _discover_candidates(
+        self,
+        product: dict,
+        keyword: str,
+    ) -> tuple[dict[str, dict], list[str], bool]:
+        """Return (valid_details, errors, transport_failed)."""
+        errors: list[str] = []
+        try:
+            raw = self._search(keyword)
+        except requests.RequestException as exc:
+            return {}, [f"{type(exc).__name__}: {exc}"], True
+        except Exception as exc:
+            return {}, [f"{type(exc).__name__}: {exc}"], False
+
+        raw_candidates: list[dict] = []
+        for item in raw:
+            title = _pick(item, "title", "goodsName")
+            shop = _pick(item, "shopName")
+            if title_matches(title, product) and shop_matches(shop, product):
+                raw_candidates.append(item)
+
+        details: dict[str, dict] = {}
+        for item in raw_candidates[:DISCOVERY_DETAIL_LIMIT]:
+            goods_id = str(_pick(item, "goodsId", "id", "goods_id") or "")
+            if not goods_id:
+                continue
+            try:
+                detail = self._detail(goods_id)
+            except requests.RequestException as exc:
+                errors.append(f"{goods_id}: {type(exc).__name__}: {exc}")
+                continue
+            except Exception as exc:
+                errors.append(f"{goods_id}: {type(exc).__name__}: {exc}")
+                continue
+            if self._valid_detail(product, detail):
+                stable_id = self._stable_id(detail)
+                if stable_id:
+                    details[stable_id] = detail
+
+        return details, errors, False
+
     def fetch(self, product: dict) -> Quote:
         source_cfg = product.get("source") or {}
         mapping = source_cfg.get("mapping") or {}
@@ -197,79 +331,89 @@ class MaishouSource(PriceSource):
                 )
             return self._detail_to_quote(product, detail, exact_mapping=True)
 
-        keywords = source_cfg.get("search_keywords") or []
-        raw_candidates: list[dict] = []
-        errors: list[str] = []
-        for keyword in keywords:
-            try:
-                for item in self._search(str(keyword)):
-                    title = _pick(item, "title", "goodsName")
-                    shop = _pick(item, "shopName")
-                    if title_matches(title, product) and shop_matches(shop, product):
-                        raw_candidates.append(item)
-            except Exception as exc:
-                errors.append(f"{type(exc).__name__}: {exc}")
+        # First probe provider IDs previously observed for this exact human-facing
+        # product. They are cache/discovery hints only, never proof of canonical
+        # JD SKU identity.
+        known_candidates = source_cfg.get("known_candidates") or []
+        known_valid: dict[str, dict] = {}
+        known_other_errors: list[str] = []
+        if isinstance(known_candidates, list) and known_candidates:
+            known_valid, transport_errors, known_other_errors = (
+                self._probe_known_candidates(product, known_candidates)
+            )
+            # Any transport uncertainty means we could not check the complete
+            # candidate set. Do not treat the one reachable candidate as unique.
+            if transport_errors:
+                return self._quote(
+                    product,
+                    "SOURCE_ERROR",
+                    confidence=PriceConfidence.UNVERIFIED.value,
+                    detail={
+                        "stage": "known_candidate_detail",
+                        "errors": (transport_errors + known_other_errors)[:5],
+                        "known_candidate_count": len(known_candidates),
+                    },
+                )
+            if len(known_valid) > 1:
+                return self._ambiguous_quote(
+                    product,
+                    known_valid,
+                    errors=known_other_errors,
+                    candidate_source="known_candidates",
+                )
 
-        if not raw_candidates:
+        # Only one discovery query is used. Earlier smoke tests showed the more
+        # specific AD653C/SKU queries returning no JD goods, while this query
+        # returned the target family. This avoids four serial network waits.
+        discovery_keyword = source_cfg.get("discovery_keyword")
+        if not discovery_keyword:
+            keywords = source_cfg.get("search_keywords") or []
+            discovery_keyword = keywords[-1] if keywords else ""
+
+        if not discovery_keyword:
+            if len(known_valid) == 1:
+                detail = next(iter(known_valid.values()))
+                return self._detail_to_quote(product, detail, exact_mapping=False)
             return self._quote(
                 product,
-                "NO_MATCH" if not errors else "SOURCE_ERROR",
-                detail={"errors": errors[:5]},
+                "NO_MATCH",
+                detail={"reason": "No known candidate or discovery keyword configured."},
             )
 
-        # Maishou may return several provider entities for the same human-facing
-        # JD product with different promotional prices. Do not choose the cheapest.
-        # Detail each candidate and require a single provider mapping.
-        detail_candidates: dict[str, dict] = {}
-        for item in raw_candidates[:10]:
-            goods_id = str(_pick(item, "goodsId", "id", "goods_id") or "")
-            if not goods_id:
-                continue
-            try:
-                detail = self._detail(goods_id)
-            except Exception as exc:
-                errors.append(f"{type(exc).__name__}: {exc}")
-                continue
-            if (
-                title_matches(_pick(detail, "title", "goodsName"), product)
-                and shop_matches(_pick(detail, "shopName"), product)
-                and jd_self_operated(detail)
-            ):
-                stable_id = str(_pick(detail, "jdGoodsIdB", "goodsIdB", "goodsId") or "")
-                if stable_id:
-                    detail_candidates[stable_id] = detail
-
-        if not detail_candidates:
+        discovered, discovery_errors, transport_failed = self._discover_candidates(
+            product, str(discovery_keyword)
+        )
+        if transport_failed:
             return self._quote(
                 product,
-                "VALIDATION_FAILED" if not errors else "SOURCE_ERROR",
-                detail={"errors": errors[:5]},
-            )
-
-        if len(detail_candidates) != 1:
-            return self._quote(
-                product,
-                "AMBIGUOUS_SOURCE_MAPPING",
+                "SOURCE_ERROR",
                 confidence=PriceConfidence.UNVERIFIED.value,
                 detail={
-                    "canonical_sku": (product.get("identifiers") or {}).get("sku_id"),
-                    "candidate_count": len(detail_candidates),
-                    "candidates": [
-                        {
-                            "goods_id_b": key,
-                            "goods_id": _pick(value, "goodsId"),
-                            "title": _pick(value, "title"),
-                            "shop": _pick(value, "shopName"),
-                            "price": _float(_pick(value, "actualPrice")),
-                        }
-                        for key, value in detail_candidates.items()
-                    ],
-                    "reason": "Multiple Maishou provider entities match; exact canonical JD SKU mapping has not been verified.",
-                    "errors": errors[:5],
+                    "stage": "discovery_search",
+                    "errors": (known_other_errors + discovery_errors)[:5],
                 },
             )
 
-        detail = next(iter(detail_candidates.values()))
-        # A unique search result is still not promoted to exact-SKU confidence
-        # until its provider goods ID is explicitly verified and pinned in config.
+        merged = dict(known_valid)
+        merged.update(discovered)
+
+        if not merged:
+            return self._quote(
+                product,
+                "VALIDATION_FAILED" if discovery_errors else "NO_MATCH",
+                detail={"errors": (known_other_errors + discovery_errors)[:5]},
+            )
+
+        if len(merged) != 1:
+            return self._ambiguous_quote(
+                product,
+                merged,
+                errors=known_other_errors + discovery_errors,
+                candidate_source="known_plus_discovery",
+            )
+
+        detail = next(iter(merged.values()))
+        # A unique currently reachable provider entity is still not promoted to
+        # exact-SKU confidence until its Maishou → canonical JD SKU mapping is
+        # explicitly verified and pinned in config.
         return self._detail_to_quote(product, detail, exact_mapping=False)
