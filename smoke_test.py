@@ -16,19 +16,24 @@ HEADERS = {
 }
 
 # Target confirmed by the user:
-# CUKTECH / 酷态科 6号氮化镓充电器 65W, standalone charger,
-# explicitly NOT the card-style 电能卡片 product.
+# CUKTECH / 酷态科 AD653C 65W GaN charger, old square 2C1A model,
+# standalone charger only. Explicitly exclude newer mini / Ultra / card-style
+# products and bundles.
 TARGET = {
     "brand_terms": ["酷态科", "cuktech"],
-    "model_terms": ["6号", "六号"],
+    "exact_model_terms": ["ad653c"],
     "power_terms": ["65w", "65瓦"],
-    "excluded_terms": ["卡片", "电能卡片", "卡片式"],
+    "interface_terms": ["2c1a", "三口", "多口"],
+    "excluded_terms": [
+        "mini", "ultra", "屏显", "卡片", "电能卡片", "电能片",
+        "90w", "100w", "套装", "套餐", "数据线", "充电线", "电池",
+    ],
 }
 
 CASES = [
-    (1, "taobao", ["酷态科 6号 65W", "CUKTECH 6号 65W", "酷态科 65W"]),
-    (2, "jd", ["酷态科 6号 65W", "CUKTECH 6号 65W", "酷态科 65W"]),
-    (3, "pdd", ["酷态科 6号 65W", "CUKTECH 6号 65W", "酷态科 65W"]),
+    (1, "taobao", ["酷态科 AD653C", "CUKTECH AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]),
+    (2, "jd", ["酷态科 AD653C", "CUKTECH AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]),
+    (3, "pdd", ["酷态科 AD653C", "CUKTECH AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]),
 ]
 
 
@@ -79,29 +84,36 @@ def normalize_goods(item):
     }
 
 
+def compact(text):
+    return (text or "").lower().replace(" ", "").replace("-", "")
+
+
 def contains_any(text, terms):
-    value = (text or "").lower().replace(" ", "")
-    return any(term.lower().replace(" ", "") in value for term in terms)
+    value = compact(text)
+    return any(compact(term) in value for term in terms)
 
 
 def product_matches(goods):
     title = goods.get("title") or ""
-    return (
-        contains_any(title, TARGET["brand_terms"])
-        and contains_any(title, TARGET["model_terms"])
-        and contains_any(title, TARGET["power_terms"])
-        and not contains_any(title, TARGET["excluded_terms"])
+    value = compact(title)
+    brand_ok = contains_any(title, TARGET["brand_terms"])
+    exact_model = contains_any(title, TARGET["exact_model_terms"])
+    descriptive_model = (
+        contains_any(title, TARGET["power_terms"])
+        and contains_any(title, TARGET["interface_terms"])
     )
+    excluded = contains_any(title, TARGET["excluded_terms"])
+    return brand_ok and (exact_model or descriptive_model) and not excluded
 
 
 def store_matches(platform, goods):
-    shop = (goods.get("shopName") or "").lower().replace(" ", "")
+    shop = compact(goods.get("shopName") or "")
     if not shop:
         return False
     brand_ok = "酷态科" in shop or "cuktech" in shop
     if platform == "jd":
         return "自营" in shop or (brand_ok and "旗舰店" in shop)
-    return brand_ok and "旗舰店" in shop
+    return brand_ok and ("旗舰店" in shop or "官方" in shop)
 
 
 def eligible(platform, goods):
@@ -179,11 +191,10 @@ def main():
                     seen.add(key)
                     all_goods.append(item)
             print("ATTEMPT", json.dumps(attempts[-1], ensure_ascii=False))
-            if all_goods:
-                # Continue with remaining query variants only when there is no eligible result yet.
-                current_eligible = [x for x in all_goods if eligible(platform, x)]
-                if current_eligible:
-                    break
+
+            current_eligible = [x for x in all_goods if eligible(platform, x)]
+            if current_eligible:
+                break
             time.sleep(0.4)
 
         product_candidates = [x for x in all_goods if product_matches(x)]
@@ -206,8 +217,9 @@ def main():
         "tested_at": datetime.now(timezone.utc).isoformat(),
         "endpoint": "/api/v1/homepage/searchList",
         "public_invite_code": PUBLIC_INVITE_CODE,
-        "target": "CUKTECH/酷态科 6号氮化镓充电器 65W，单体，非卡片式",
-        "store_requirement": "京东自营或品牌旗舰店；淘宝/拼多多要求酷态科/CUKTECH旗舰店",
+        "target": "CUKTECH/酷态科 AD653C 65W GaN 2C1A 老款方形充电器，单体",
+        "store_requirement": "京东自营或品牌旗舰店；淘宝/拼多多要求酷态科/CUKTECH官方或旗舰店",
+        "excluded": "mini / Ultra / 屏显 / 卡片 / 90W / 100W / 套装 / 线材 / 电池",
         "results": platform_results,
     }
 
