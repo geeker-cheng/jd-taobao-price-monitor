@@ -1,3 +1,4 @@
+# Triggered after GitHub registered the workflow.
 import json
 import sys
 from datetime import datetime, timezone
