@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .security import sanitize_data
+
 
 STATE_VERSION = 2
 HEALTH_VERSION = 1
@@ -43,7 +45,8 @@ def load_json(path: str | Path, default: dict) -> dict:
 
 
 def _render_json(data: dict) -> str:
-    return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    safe = sanitize_data(data)
+    return json.dumps(safe, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
 def write_json_if_changed(path: str | Path, data: dict) -> bool:
@@ -76,6 +79,20 @@ class StateStore:
         self.health = load_json(self.health_path, DEFAULT_HEALTH)
         self._dirty = {"status": False, "history": False, "alert": False, "health": False}
 
+        # Sanitize any legacy state already present in the checkout. This lets the
+        # next successful run clean old unsafe material instead of preserving it.
+        for key, attr in (
+            ("status", "status"),
+            ("history", "history"),
+            ("alert", "alert"),
+            ("health", "health"),
+        ):
+            current = getattr(self, attr)
+            safe = sanitize_data(current)
+            if safe != current:
+                setattr(self, attr, safe)
+                self._dirty[key] = True
+
         # Small in-place schema migration for repositories created by v1.
         if self.status.get("version") != STATE_VERSION:
             self.status["version"] = STATE_VERSION
@@ -95,16 +112,18 @@ class StateStore:
         return products[product_id]
 
     def set_status(self, product_id: str, value: dict) -> None:
+        safe_value = sanitize_data(value)
         products = self.status.setdefault("products", {})
-        if products.get(product_id) != value:
-            products[product_id] = value
+        if products.get(product_id) != safe_value:
+            products[product_id] = safe_value
             self._dirty["status"] = True
 
     def append_history(self, product_id: str, sample: dict, limit: int = 365) -> bool:
+        safe_sample = sanitize_data(sample)
         rows = self.history.setdefault("products", {}).setdefault(product_id, [])
-        if rows and _sample_signature(rows[-1]) == _sample_signature(sample):
+        if rows and _sample_signature(rows[-1]) == _sample_signature(safe_sample):
             return False
-        rows.append(sample)
+        rows.append(safe_sample)
         if len(rows) > limit:
             del rows[:-limit]
         self._dirty["history"] = True
@@ -130,8 +149,9 @@ class StateStore:
             current["last_error"] = None
         else:
             current["last_error_at"] = checked_at
-            current["last_error"] = error or status
+            current["last_error"] = sanitize_data(error or status)
             current["consecutive_failures"] = int(old.get("consecutive_failures") or 0) + 1
+        current = sanitize_data(current)
         if old != current:
             sources[source] = current
             self._dirty["health"] = True
@@ -147,6 +167,10 @@ class StateStore:
         for key, path, payload in targets:
             if not self._dirty[key]:
                 continue
+            safe_payload = sanitize_data(payload)
+            if safe_payload != payload:
+                payload.clear()
+                payload.update(safe_payload)
             payload["updated_at"] = updated_at
             if write_json_if_changed(path, payload):
                 changed.append(path.name)
