@@ -51,6 +51,13 @@ jobs:
           MAISHOU_INVITE_CODE: ${{ secrets.MAISHOU_INVITE_CODE }}
         run: python -m price_monitor.cli run
 
+      - name: Verify public state safety
+        if: ${{ github.event_name == 'schedule' || inputs.run_live }}
+        env:
+          HAODANKU_API_KEY: ${{ secrets.HAODANKU_API_KEY }}
+          MAISHOU_INVITE_CODE: ${{ secrets.MAISHOU_INVITE_CODE }}
+        run: python -m price_monitor.cli scan-state
+
       - name: Persist state to repository
         if: ${{ github.event_name == 'schedule' || inputs.run_live }}
         shell: bash
