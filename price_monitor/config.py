@@ -26,6 +26,10 @@ def load_config(path: str | Path) -> dict:
         data = yaml.safe_load(fh) or {}
 
     _require_dict(data, "root")
+    history_limit = data.get("history_limit", 365)
+    if not isinstance(history_limit, int) or isinstance(history_limit, bool) or history_limit <= 0:
+        raise ConfigError("history_limit must be a positive integer sample count")
+
     products = data.get("products")
     if not isinstance(products, list):
         raise ConfigError("products must be a list")
@@ -55,9 +59,7 @@ def load_config(path: str | Path) -> dict:
         provider = source.get("provider")
         expected = "maishou" if platform == "jd" else "haodanku"
         if provider != expected:
-            raise ConfigError(
-                f"{product_id}: {platform} must use provider={expected}"
-            )
+            raise ConfigError(f"{product_id}: {platform} must use provider={expected}")
 
         match = _require_dict(product.get("match", {}), f"{product_id}.match")
         groups = match.get("required_title_groups")
@@ -71,12 +73,15 @@ def load_config(path: str | Path) -> dict:
         if not isinstance(allowed, list) or not allowed:
             raise ConfigError(f"{product_id}: shops.allowed must be non-empty")
 
-        # Reserved alert interface. These fields are validated only for schema
-        # compatibility; the current runtime does not evaluate or emit alerts.
+        # Reserved only. Alert execution is not implemented in this phase.
         alert = _require_dict(product.get("alert", {}), f"{product_id}.alert")
         enabled = alert.get("enabled", False)
         if not isinstance(enabled, bool):
             raise ConfigError(f"{product_id}: alert.enabled must be boolean")
+        if enabled:
+            raise ConfigError(
+                f"{product_id}: alert execution is not implemented; set alert.enabled=false"
+            )
         for field in ("target_price", "significant_drop_pct"):
             value = alert.get(field)
             if value is not None and not isinstance(value, (int, float)):

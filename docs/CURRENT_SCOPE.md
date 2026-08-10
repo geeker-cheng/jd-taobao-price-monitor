@@ -1,22 +1,20 @@
 # Current production scope
 
-Current phase: reliable price collection and state persistence.
+Implemented:
 
-Implemented now:
+- JD collection through Maishou with verified stable mapping support.
+- Taobao/Tmall collection through Haodanku.
+- Product/store/variant-family validation.
+- `EXACT_SKU_PRICE`, `PRODUCT_PAGE_PRICE`, and `UNVERIFIED` confidence.
+- Persistent latest status, deduplicated price-change history, and source health.
+- Scheduled GitHub Actions with repository state commits.
+- Per-source failure isolation, hard workflow timeout, and concurrency protection.
 
-- JD/Taobao product identity validation
-- normalized price quotes
-- accepted price history
-- source confidence levels
-- source/network failure states
+Not implemented:
 
-Reserved for future work, but intentionally inactive now:
+- Target-price alerts.
+- Significant-drop alerts.
+- ChatGPT/email/webhook price notifications.
+- Price-change anomaly rejection.
 
-- target-price alerts
-- significant-drop alerts
-- alert re-arm/state-machine logic
-- price-change-based anomaly rejection
-
-A large price move by itself is not treated as invalid data. A sample is accepted when the source returns an `OK` quote with a positive monitoring price and the platform-specific identity/store validation has already passed.
-
-The `alert` config block, `AlertEvent` type, `events` output field, and `data/alert_state.json` are retained only as compatibility/extension interfaces. They currently do not produce notifications or reject price samples.
+The `alert` configuration and related Python types remain reserved interfaces only and must stay disabled.

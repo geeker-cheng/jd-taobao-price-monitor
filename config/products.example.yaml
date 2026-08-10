@@ -1,0 +1,61 @@
+version: 2
+history_limit: 365
+
+products:
+  - id: example_jd_product
+    enabled: true
+    status: NEW
+    platform: jd
+    name: 示例京东商品
+    canonical_url: https://item.jd.com/REPLACE_WITH_SKU.html
+    identifiers:
+      sku_id: "REPLACE_WITH_SKU"
+      model: REPLACE_WITH_MODEL
+    variant:
+      description: REPLACE_WITH_EXACT_VARIANT
+    shops:
+      allowed: [REPLACE_WITH_JD_SELF_OPERATED_STORE]
+      require_self_operated: true
+    match:
+      required_title_groups:
+        - [REPLACE_WITH_BRAND]
+        - [REPLACE_WITH_MODEL_OR_KEY_SPEC]
+      excluded_title_terms: [REPLACE_WITH_WRONG_VARIANT_TERM]
+    source:
+      provider: maishou
+      known_candidates: []
+      discovery_keyword: REPLACE_WITH_DISCOVERY_KEYWORD
+      mapping:
+        verified: false
+        provider_goods_id_b: null
+        provider_goods_id: null
+    alert:
+      enabled: false
+      target_price: null
+      significant_drop_pct: null
+
+  - id: example_taobao_product
+    enabled: true
+    status: NEW
+    platform: taobao
+    name: 示例淘宝/天猫商品
+    identifiers:
+      model: REPLACE_WITH_MODEL
+    variant:
+      description: REPLACE_WITH_EXACT_VARIANT
+    shops:
+      allowed: [REPLACE_WITH_OFFICIAL_FLAGSHIP_STORE]
+      require_self_operated: false
+    match:
+      required_title_groups:
+        - [REPLACE_WITH_BRAND]
+        - [REPLACE_WITH_MODEL_OR_KEY_SPEC]
+      excluded_title_terms: [REPLACE_WITH_WRONG_VARIANT_TERM]
+    source:
+      provider: haodanku
+      search_keywords:
+        - REPLACE_WITH_SEARCH_KEYWORD
+    alert:
+      enabled: false
+      target_price: null
+      significant_drop_pct: null

@@ -8,18 +8,27 @@ on:
         required: true
         type: boolean
         default: false
+  schedule:
+    # UTC+8: 10:15, 14:15, 18:15, 22:15 every day.
+    - cron: "15 2,6,10,14 * * *"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: price-monitor-production
+  cancel-in-progress: false
 
 jobs:
-  validate-and-test:
+  validate-test-monitor:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,19 +45,42 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Run live collection
-        if: ${{ inputs.run_live }}
+        if: ${{ github.event_name == 'schedule' || inputs.run_live }}
         env:
           HAODANKU_API_KEY: ${{ secrets.HAODANKU_API_KEY }}
           MAISHOU_INVITE_CODE: ${{ secrets.MAISHOU_INVITE_CODE }}
         run: python -m price_monitor.cli run
 
-      - name: Upload live state
-        if: ${{ inputs.run_live }}
+      - name: Persist state to repository
+        if: ${{ github.event_name == 'schedule' || inputs.run_live }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/price_status.json \
+            data/price_history.json \
+            data/source_health.json \
+            data/alert_state.json
+
+          if git diff --cached --quiet; then
+            echo "No persisted state changes."
+            exit 0
+          fi
+
+          git commit -m "chore(data): update price monitor state [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Upload state snapshot
+        if: ${{ github.event_name == 'schedule' || inputs.run_live }}
         uses: actions/upload-artifact@v4
         with:
           name: price-monitor-state
           path: |
             data/price_status.json
             data/price_history.json
+            data/source_health.json
             data/alert_state.json
           retention-days: 3

@@ -1,4 +1,5 @@
-version: 1
+version: 2
+# Maximum accepted price-change samples retained per product (not days).
 history_limit: 365
 
 products:
