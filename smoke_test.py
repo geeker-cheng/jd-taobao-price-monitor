@@ -1,4 +1,3 @@
-# Triggered after GitHub registered the workflow.
 import json
 import sys
 from datetime import datetime, timezone
@@ -9,37 +8,12 @@ BASE_URL = "https://appapi.maishou88.com"
 INVITE_CODE = "6110440"  # Public third-party code used only for smoke testing.
 KEYWORD = "iPhone 16"
 TIMEOUT_SECONDS = 20
-HEADERS = {
+COMMON_HEADERS = {
     "Accept": "application/json",
     "Referer": "https://hnbc018.kuaizhan.com/",
     "User-Agent": "Mozilla/5.0 AppleWebKit/537 Chrome/143 Safari/537",
-    "Content-Type": "application/json",
 }
-PLATFORMS = {
-    1: "taobao",
-    2: "jd",
-    3: "pdd",
-}
-
-
-def parse_goods_list(payload):
-    if not isinstance(payload, dict):
-        return []
-    data = payload.get("data")
-    if isinstance(data, list):
-        return data
-    if not isinstance(data, dict):
-        return []
-
-    candidates = [data.get("goodsList"), data.get("list"), data.get("items")]
-    result = data.get("result")
-    if isinstance(result, dict):
-        candidates.extend([result.get("goodsList"), result.get("list"), result.get("items")])
-
-    for candidate in candidates:
-        if isinstance(candidate, list) and candidate:
-            return candidate
-    return []
+PLATFORMS = {1: "taobao", 2: "jd", 3: "pdd"}
 
 
 def pick(item, *keys):
@@ -52,112 +26,131 @@ def pick(item, *keys):
     return None
 
 
-def request_json(url, payload):
-    response = requests.post(url, headers=HEADERS, json=payload, timeout=TIMEOUT_SECONDS)
-    text = response.text
+def looks_like_goods(item):
+    if not isinstance(item, dict):
+        return False
+    keys = set(item.keys())
+    return bool(keys & {"goodsId", "goods_id", "title", "goodsName", "actualPrice", "price", "shopName"})
+
+
+def find_goods_list_deep(obj):
+    if isinstance(obj, list):
+        if obj and any(looks_like_goods(x) for x in obj):
+            return [x for x in obj if isinstance(x, dict)]
+        for value in obj:
+            found = find_goods_list_deep(value)
+            if found:
+                return found
+    elif isinstance(obj, dict):
+        for value in obj.values():
+            found = find_goods_list_deep(value)
+            if found:
+                return found
+    return []
+
+
+def summarize_first(goods):
+    if not goods:
+        return None
+    first = goods[0]
+    return {
+        "goods_id": pick(first, "goodsId", "id", "goods_id"),
+        "title": pick(first, "title", "goodsName", "name"),
+        "actualPrice": pick(first, "actualPrice", "price", "actual_price"),
+        "originalPrice": pick(first, "originalPrice", "original_price"),
+        "couponPrice": pick(first, "couponPrice", "coupon_price"),
+        "shopName": pick(first, "shopName", "shop_name"),
+    }
+
+
+def post_form(url, payload):
+    response = requests.post(url, headers=COMMON_HEADERS, data=payload, timeout=TIMEOUT_SECONDS)
     try:
         body = response.json()
     except Exception:
         body = None
-    return response.status_code, text, body
+    return response.status_code, response.text, body
+
+
+def post_json(url, payload):
+    headers = dict(COMMON_HEADERS)
+    headers["Content-Type"] = "application/json"
+    response = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT_SECONDS)
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+    return response.status_code, response.text, body
 
 
 def test_platform(source_type, platform):
     result = {
         "platform": platform,
         "sourceType": source_type,
-        "search_http": None,
-        "search_ok": False,
-        "goods_count": 0,
-        "goods_id": None,
-        "title": None,
-        "search_actual_price": None,
-        "search_original_price": None,
-        "search_coupon_price": None,
-        "detail_http": None,
-        "detail_ok": False,
-        "detail_actual_price": None,
-        "detail_original_price": None,
-        "detail_coupon_price": None,
+        "v1": {"http": None, "ok": False, "goods_count": 0, "first": None, "api_status": None, "api_code": None, "api_message": None},
+        "v3": {"http": None, "ok": False, "goods_count": 0, "first": None, "api_status": None, "api_code": None, "api_message": None},
         "error": None,
     }
 
-    search_payload = {
-        "keyword": KEYWORD,
-        "sourceType": str(source_type),
-        "inviteCode": INVITE_CODE,
-        "supplierCode": "",
-        "activityId": "",
-        "usageScene": 5,
-        "page": 1,
-        "pageSize": 5,
-    }
+    print(f"\n===== {platform} / sourceType={source_type} =====")
 
     try:
-        status, raw, body = request_json(BASE_URL + "/api/v3/goods/list", search_payload)
-        result["search_http"] = status
-        print(f"\n===== {platform} / sourceType={source_type} =====")
-        print("SEARCH_HTTP", status)
-        print("SEARCH_RAW", raw[:1500])
+        # Current endpoint observed in recently updated public Maishou clients.
+        v1_payload = {
+            "keyword": KEYWORD,
+            "sourceType": str(source_type),
+            "page": "1",
+            "pageSize": "5",
+            "inviteCode": INVITE_CODE,
+        }
+        status, raw, body = post_form(BASE_URL + "/api/v1/homepage/searchList", v1_payload)
+        goods = find_goods_list_deep(body)
+        result["v1"].update({
+            "http": status,
+            "goods_count": len(goods),
+            "first": summarize_first(goods),
+            "api_status": body.get("status") if isinstance(body, dict) else None,
+            "api_code": body.get("code") if isinstance(body, dict) else None,
+            "api_message": body.get("message") if isinstance(body, dict) else None,
+        })
+        first = result["v1"]["first"] or {}
+        result["v1"]["ok"] = status == 200 and bool(goods) and first.get("actualPrice") not in (None, "", 0, "0", "0.0")
+        print("V1_HTTP", status)
+        print("V1_RAW", raw[:2500])
+        print("V1_PARSED", json.dumps(result["v1"], ensure_ascii=False))
 
-        goods = parse_goods_list(body)
-        result["goods_count"] = len(goods)
-        if not goods:
-            result["error"] = "search returned no parseable goods"
-            return result
-
-        first = goods[0]
-        goods_id = pick(first, "goodsId", "id", "goods_id")
-        result["goods_id"] = str(goods_id) if goods_id is not None else None
-        result["title"] = pick(first, "title", "goodsName", "name")
-        result["search_actual_price"] = pick(first, "actualPrice", "price", "actual_price")
-        result["search_original_price"] = pick(first, "originalPrice", "original_price")
-        result["search_coupon_price"] = pick(first, "couponPrice", "coupon_price")
-        result["search_ok"] = status == 200 and goods_id is not None
-
-        print("PARSED_FIRST", json.dumps({
-            "goods_id": result["goods_id"],
-            "title": result["title"],
-            "actualPrice": result["search_actual_price"],
-            "originalPrice": result["search_original_price"],
-            "couponPrice": result["search_coupon_price"],
-        }, ensure_ascii=False))
-
-        if goods_id is None:
-            result["error"] = "first search item has no goods id"
-            return result
-
-        detail_payload = {
-            "goodsId": str(goods_id),
+        # Old endpoint documented by Kumagt/price-monitor, retained for comparison.
+        v3_payload = {
+            "keyword": KEYWORD,
             "sourceType": str(source_type),
             "inviteCode": INVITE_CODE,
-            "keyword": "",
-            "usageScene": 5,
             "supplierCode": "",
             "activityId": "",
-            "isShare": "0",
-            "token": "",
+            "usageScene": 5,
+            "page": 1,
+            "pageSize": 5,
         }
-        d_status, d_raw, d_body = request_json(BASE_URL + "/api/v3/goods/detail", detail_payload)
-        result["detail_http"] = d_status
-        print("DETAIL_HTTP", d_status)
-        print("DETAIL_RAW", d_raw[:1500])
+        status, raw, body = post_json(BASE_URL + "/api/v3/goods/list", v3_payload)
+        goods = find_goods_list_deep(body)
+        result["v3"].update({
+            "http": status,
+            "goods_count": len(goods),
+            "first": summarize_first(goods),
+            "api_status": body.get("status") if isinstance(body, dict) else None,
+            "api_code": body.get("code") if isinstance(body, dict) else None,
+            "api_message": body.get("message") if isinstance(body, dict) else None,
+        })
+        first = result["v3"]["first"] or {}
+        result["v3"]["ok"] = status == 200 and bool(goods) and first.get("actualPrice") not in (None, "", 0, "0", "0.0")
+        print("V3_HTTP", status)
+        print("V3_RAW", raw[:1500])
+        print("V3_PARSED", json.dumps(result["v3"], ensure_ascii=False))
 
-        detail = d_body.get("data") if isinstance(d_body, dict) else None
-        if not isinstance(detail, dict) or not detail:
-            result["error"] = "detail returned no parseable data"
-            return result
-
-        result["detail_actual_price"] = pick(detail, "actualPrice", "price", "actual_price")
-        result["detail_original_price"] = pick(detail, "originalPrice", "original_price")
-        result["detail_coupon_price"] = pick(detail, "couponPrice", "coupon_price")
-        result["detail_ok"] = d_status == 200 and result["detail_actual_price"] not in (None, "", 0, "0", "0.0")
-
-        return result
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
         print("ERROR", result["error"])
-        return result
+
+    return result
 
 
 def main():
@@ -167,8 +160,8 @@ def main():
         "keyword": KEYWORD,
         "invite_code": INVITE_CODE,
         "results": results,
-        "all_search_ok": all(r["search_ok"] for r in results),
-        "all_detail_ok": all(r["detail_ok"] for r in results),
+        "all_v1_ok": all(r["v1"]["ok"] for r in results),
+        "all_v3_ok": all(r["v3"]["ok"] for r in results),
     }
 
     with open("smoke-result.json", "w", encoding="utf-8") as f:
@@ -176,9 +169,6 @@ def main():
 
     print("\n===== SUMMARY =====")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-
-    # The workflow should complete even when the third-party API itself fails;
-    # the result file and logs are the smoke-test evidence.
     return 0
 
 
