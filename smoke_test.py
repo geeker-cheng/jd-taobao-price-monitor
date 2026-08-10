@@ -1,302 +1,222 @@
+import html
 import json
+import re
 import sys
-import time
 from datetime import datetime, timezone
+from urllib.parse import unquote
 
 import requests
 
-BASE_URL = "https://appapi.maishou88.com"
-PUBLIC_INVITE_CODE = "6110440"
 CONNECT_TIMEOUT = 6
 READ_TIMEOUT = 12
+UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/151.0.0.0 Safari/537.36"
+)
 HEADERS = {
-    "Accept": "application/json",
-    "Referer": "https://hnbc018.kuaizhan.com/",
-    "User-Agent": "Mozilla/5.0 AppleWebKit/537 Chrome/143 Safari/537",
+    "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.7",
+    "User-Agent": UA,
 }
 
 TARGET = {
-    "brand_terms": ["酷态科", "cuktech"],
-    "exact_model_terms": ["ad653c"],
-    "power_terms": ["65w", "65瓦"],
-    "interface_terms": ["2c1a", "三口", "多口"],
-    "excluded_terms": [
-        "mini", "ultra", "屏显", "卡片", "电能卡片", "电能片",
-        "90w", "100w", "套装", "套餐", "数据线", "充电线", "电池",
-    ],
+    "model": "AD653C",
+    "name": "CUKTECH/酷态科 65W 2C1A 氮化镓充电器 AD653C 灰色单体版",
+    "jd_sku": "100068768088",
 }
 
-CASES = [
-    (1, "taobao", ["酷态科 AD653C", "CUKTECH AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]),
-    (2, "jd", ["酷态科 AD653C", "CUKTECH AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]),
-    (3, "pdd", ["酷态科 AD653C", "CUKTECH AD653C", "酷态科 65W 2C1A", "酷态科 65W 氮化镓"]),
+# These pages were found from public search results and explicitly identify the
+# same AD653C product on the corresponding platform. They are used only as
+# free auxiliary discovery/verification sources, not as purchase links.
+AUX_PAGES = [
+    {
+        "platform": "tmall",
+        "url": "https://www.smzdm.com/p/178967194/",
+        "expected_terms": ["AD653C", "天猫", "灰色单体版", "2C1A"],
+    },
+    {
+        "platform": "pdd",
+        "url": "https://www.smzdm.com/p/177755710/",
+        "expected_terms": ["AD653C", "拼多多", "2C1A"],
+    },
 ]
 
 
-def pick(item, *keys):
-    if not isinstance(item, dict):
-        return None
-    for key in keys:
-        value = item.get(key)
-        if value not in (None, ""):
-            return value
-    return None
-
-
-def looks_like_goods(item):
-    if not isinstance(item, dict):
-        return False
-    return bool(set(item.keys()) & {
-        "goodsId", "goods_id", "title", "goodsName", "actualPrice", "price", "shopName"
-    })
-
-
-def find_goods_list_deep(obj):
-    if isinstance(obj, list):
-        if obj and any(looks_like_goods(x) for x in obj):
-            return [x for x in obj if isinstance(x, dict)]
-        for value in obj:
-            found = find_goods_list_deep(value)
-            if found:
-                return found
-    elif isinstance(obj, dict):
-        for value in obj.values():
-            found = find_goods_list_deep(value)
-            if found:
-                return found
-    return []
-
-
-def normalize_goods(item):
-    return {
-        "goods_id": pick(item, "goodsId", "id", "goods_id"),
-        "title": pick(item, "title", "goodsName", "name"),
-        "shopName": pick(item, "shopName", "shop_name"),
-        "platformName": pick(item, "platformName", "platform_name"),
-        "actualPrice": pick(item, "actualPrice", "price", "actual_price"),
-        "originalPrice": pick(item, "originalPrice", "original_price"),
-        "couponPrice": pick(item, "couponPrice", "coupon_price"),
-        "sourceType": pick(item, "sourceType", "source_type"),
-    }
-
-
-def compact(text):
-    return (text or "").lower().replace(" ", "").replace("-", "")
-
-
-def contains_any(text, terms):
-    value = compact(text)
-    return any(compact(term) in value for term in terms)
-
-
-def product_matches(goods):
-    title = goods.get("title") or ""
-    brand_ok = contains_any(title, TARGET["brand_terms"])
-    exact_model = contains_any(title, TARGET["exact_model_terms"])
-    descriptive_model = (
-        contains_any(title, TARGET["power_terms"])
-        and contains_any(title, TARGET["interface_terms"])
-    )
-    excluded = contains_any(title, TARGET["excluded_terms"])
-    return brand_ok and (exact_model or descriptive_model) and not excluded
-
-
-def store_matches(platform, goods):
-    shop = compact(goods.get("shopName") or "")
-    if not shop:
-        return False
-    brand_ok = "酷态科" in shop or "cuktech" in shop
-    if platform == "jd":
-        return "自营" in shop or (brand_ok and "旗舰店" in shop)
-    return brand_ok and ("旗舰店" in shop or "官方" in shop)
-
-
-def call_search(source_type, keyword):
-    payload = {
-        "keyword": keyword,
-        "sourceType": str(source_type),
-        "page": "1",
-        "pageSize": "20",
-        "inviteCode": PUBLIC_INVITE_CODE,
-    }
-    response = requests.post(
-        BASE_URL + "/api/v1/homepage/searchList",
-        headers=HEADERS,
-        data=payload,
-        timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
-    )
+def safe_get(url, *, params=None):
     try:
-        body = response.json()
-    except Exception:
-        body = None
-    goods = [normalize_goods(x) for x in find_goods_list_deep(body)]
-    return {
-        "http": response.status_code,
-        "api_status": body.get("status") if isinstance(body, dict) else None,
-        "api_code": body.get("code") if isinstance(body, dict) else None,
-        "api_message": body.get("message") if isinstance(body, dict) else None,
-        "goods_count": len(goods),
-        "goods": goods,
-    }
-
-
-def safe_search(source_type, keyword):
-    try:
-        return call_search(source_type, keyword)
+        r = requests.get(
+            url,
+            params=params,
+            headers=HEADERS,
+            timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
+            allow_redirects=True,
+        )
+        return r, None
     except Exception as exc:
-        return {
-            "http": None,
-            "api_status": None,
-            "api_code": None,
-            "api_message": None,
-            "goods_count": 0,
-            "goods": [],
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+        return None, f"{type(exc).__name__}: {exc}"
 
 
-def call_detail(source_type, goods_id):
-    # Mirrors the current public Maishou skill's detail request, but intentionally
-    # does NOT call msapi /share/getTargetUrl.
-    params = {
-        "goodsId": str(goods_id),
-        "sourceType": str(source_type),
-        "inviteCode": PUBLIC_INVITE_CODE,
-        "supplierCode": "",
-        "activityId": "",
-        "isShare": "1",
-        "token": "",
-        "keyword": "",
-        "usageScene": 5,
+def compact_text(raw):
+    raw = re.sub(r"<script\b[^>]*>.*?</script>", " ", raw, flags=re.I | re.S)
+    raw = re.sub(r"<style\b[^>]*>.*?</style>", " ", raw, flags=re.I | re.S)
+    raw = re.sub(r"<[^>]+>", " ", raw)
+    raw = html.unescape(raw)
+    raw = re.sub(r"\s+", " ", raw)
+    return raw.strip()
+
+
+def find_external_links(raw):
+    links = []
+    patterns = [
+        r'https?://[^"\'<>\s]+',
+        r'//[^"\'<>\s]+',
+    ]
+    for pattern in patterns:
+        for match in re.findall(pattern, raw, flags=re.I):
+            candidate = html.unescape(unquote(match)).rstrip("\\")
+            lower = candidate.lower()
+            if any(domain in lower for domain in [
+                "jd.com", "tmall.com", "taobao.com", "yangkeduo.com", "pinduoduo.com"
+            ]):
+                if candidate.startswith("//"):
+                    candidate = "https:" + candidate
+                if candidate not in links:
+                    links.append(candidate)
+    return links[:20]
+
+
+def price_snippets(text):
+    snippets = []
+    patterns = [
+        r"(?:¥|￥)\s*\d+(?:\.\d+)?",
+        r"\d+(?:\.\d+)?\s*元",
+        r"(?:到手价|实付|售价|价格)[^。；,，]{0,30}\d+(?:\.\d+)?",
+    ]
+    for pattern in patterns:
+        for m in re.finditer(pattern, text, flags=re.I):
+            start = max(0, m.start() - 60)
+            end = min(len(text), m.end() + 80)
+            snippet = text[start:end]
+            if "AD653C" in snippet.upper() or "酷态科" in snippet or "CUKTECH" in snippet.upper():
+                if snippet not in snippets:
+                    snippets.append(snippet)
+            if len(snippets) >= 12:
+                return snippets
+    return snippets
+
+
+def probe_jd_public_price():
+    url = "https://p.3.cn/prices/mgets"
+    params = {"skuIds": f"J_{TARGET['jd_sku']}"}
+    r, error = safe_get(url, params=params)
+    result = {
+        "source": "jd_public_price_endpoint",
+        "url": r.url if r is not None else url,
+        "http": r.status_code if r is not None else None,
+        "error": error,
+        "json": None,
+        "price": None,
+        "market_price": None,
+        "ok": False,
     }
-    response = requests.post(
-        BASE_URL + "/api/v3/goods/detail",
-        headers=HEADERS,
-        json=params,
-        timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
-    )
+    if r is None:
+        return result
     try:
-        body = response.json()
-    except Exception:
-        body = None
-    data = body.get("data") if isinstance(body, dict) else None
-    data = data if isinstance(data, dict) else {}
-    important = {
-        key: data.get(key)
-        for key in [
-            "goodsId", "title", "shopName", "platformName", "actualPrice",
-            "originalPrice", "couponPrice", "sourceType", "jdGoodsIdB",
-            "jdGoodsId", "tbGoodsIdB", "tbGoodsId", "pddGoodsId",
-            "supplierCode", "activityId", "desc", "specialText",
-        ]
-        if key in data
-    }
-    return {
-        "http": response.status_code,
-        "api_status": body.get("status") if isinstance(body, dict) else None,
-        "api_code": body.get("code") if isinstance(body, dict) else None,
-        "api_message": body.get("message") if isinstance(body, dict) else None,
-        "data_keys": sorted(data.keys()),
-        "important": important,
-        "data_preview": json.dumps(data, ensure_ascii=False)[:2500],
-        "ok": response.status_code == 200 and bool(data),
-    }
-
-
-def safe_detail(source_type, goods_id):
-    try:
-        return call_detail(source_type, goods_id)
+        body = r.json()
+        result["json"] = body
+        row = body[0] if isinstance(body, list) and body else {}
+        result["price"] = row.get("p")
+        result["market_price"] = row.get("m")
+        result["ok"] = r.status_code == 200 and row.get("id") == f"J_{TARGET['jd_sku']}" and row.get("p") not in (None, "", "-1")
     except Exception as exc:
-        return {
-            "http": None,
-            "api_status": None,
-            "api_code": None,
-            "api_message": None,
-            "data_keys": [],
-            "important": {},
-            "ok": False,
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+        result["error"] = f"json parse: {type(exc).__name__}: {exc}"
+        result["body_preview"] = r.text[:1000]
+    return result
+
+
+def probe_jd_item_page():
+    url = f"https://item.jd.com/{TARGET['jd_sku']}.html"
+    r, error = safe_get(url)
+    result = {
+        "source": "jd_item_page",
+        "url": r.url if r is not None else url,
+        "http": r.status_code if r is not None else None,
+        "error": error,
+        "contains_ad653c": False,
+        "contains_65w": False,
+        "contains_2c1a": False,
+        "title": None,
+        "body_preview": None,
+        "ok": False,
+    }
+    if r is None:
+        return result
+    raw = r.text
+    text = compact_text(raw)
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", raw, flags=re.I | re.S)
+    if title_match:
+        result["title"] = compact_text(title_match.group(1))[:300]
+    result["contains_ad653c"] = "AD653C" in text.upper()
+    result["contains_65w"] = "65W" in text.upper()
+    result["contains_2c1a"] = "2C1A" in text.upper()
+    pos = text.upper().find("AD653C")
+    if pos >= 0:
+        result["body_preview"] = text[max(0, pos - 250):pos + 500]
+    else:
+        result["body_preview"] = text[:800]
+    result["ok"] = r.status_code == 200 and result["contains_ad653c"]
+    return result
+
+
+def probe_aux_page(case):
+    r, error = safe_get(case["url"])
+    result = {
+        "platform": case["platform"],
+        "source": "smzdm_public_page",
+        "url": r.url if r is not None else case["url"],
+        "http": r.status_code if r is not None else None,
+        "error": error,
+        "expected_terms": case["expected_terms"],
+        "term_hits": {},
+        "external_links": [],
+        "price_snippets": [],
+        "text_preview": None,
+        "ok": False,
+    }
+    if r is None:
+        return result
+    raw = r.text
+    text = compact_text(raw)
+    result["term_hits"] = {term: (term.lower() in text.lower()) for term in case["expected_terms"]}
+    result["external_links"] = find_external_links(raw)
+    result["price_snippets"] = price_snippets(text)
+    pos = text.upper().find("AD653C")
+    result["text_preview"] = text[max(0, pos - 300):pos + 900] if pos >= 0 else text[:1200]
+    result["ok"] = r.status_code == 200 and result["term_hits"].get("AD653C", False)
+    return result
 
 
 def main():
-    platform_results = []
-
-    for source_type, platform, keywords in CASES:
-        print(f"\n===== {platform} / sourceType={source_type} =====")
-        seen = set()
-        all_goods = []
-        attempts = []
-
-        for keyword in keywords:
-            result = safe_search(source_type, keyword)
-            attempts.append({
-                "keyword": keyword,
-                "http": result.get("http"),
-                "api_status": result.get("api_status"),
-                "api_code": result.get("api_code"),
-                "api_message": result.get("api_message"),
-                "goods_count": result.get("goods_count", 0),
-                "error": result.get("error"),
-            })
-            for item in result.get("goods", []):
-                key = str(item.get("goods_id") or "") + "|" + str(item.get("title") or "")
-                if key not in seen:
-                    seen.add(key)
-                    all_goods.append(item)
-            print("ATTEMPT", json.dumps(attempts[-1], ensure_ascii=False))
-            if [x for x in all_goods if product_matches(x)]:
-                break
-            time.sleep(0.4)
-
-        product_candidates = [x for x in all_goods if product_matches(x)][:3]
-        detail_results = []
-        for item in product_candidates:
-            detail = safe_detail(source_type, item.get("goods_id"))
-            detail_results.append({
-                "search_item": item,
-                "detail": detail,
-            })
-            print("DETAIL", json.dumps(detail_results[-1], ensure_ascii=False, indent=2))
-            time.sleep(0.3)
-
-        eligible_after_detail = []
-        for pair in detail_results:
-            item = dict(pair["search_item"])
-            important = pair["detail"].get("important") or {}
-            if important.get("shopName"):
-                item["shopName"] = important.get("shopName")
-            if important.get("title"):
-                item["title"] = important.get("title")
-            if product_matches(item) and store_matches(platform, item):
-                eligible_after_detail.append(pair)
-
-        platform_results.append({
-            "platform": platform,
-            "sourceType": source_type,
-            "attempts": attempts,
-            "unique_goods_count": len(all_goods),
-            "product_candidates": product_candidates,
-            "detail_results": detail_results,
-            "eligible_after_detail": eligible_after_detail,
-            "passed_search": bool(product_candidates),
-            "passed_store_validation": bool(eligible_after_detail),
-        })
-
     report = {
         "tested_at": datetime.now(timezone.utc).isoformat(),
-        "search_endpoint": "/api/v1/homepage/searchList",
-        "detail_endpoint": "/api/v3/goods/detail",
-        "public_invite_code": PUBLIC_INVITE_CODE,
-        "target": "CUKTECH/酷态科 AD653C 65W GaN 2C1A 老款方形充电器，单体",
-        "note": "No share/purchase-link endpoint was called.",
-        "results": platform_results,
+        "stage": "exact-product-source-probe",
+        "target": TARGET,
+        "jd": {
+            "public_price": probe_jd_public_price(),
+            "item_page": probe_jd_item_page(),
+        },
+        "auxiliary_sources": [probe_aux_page(case) for case in AUX_PAGES],
+        "notes": [
+            "No account login, cookies, affiliate conversion or purchase-link API is used.",
+            "The JD public endpoint is probed only for the exact known SKU 100068768088.",
+            "SMZDM pages are treated as auxiliary discovery/verification sources, not authoritative checkout prices.",
+        ],
     }
 
     with open("smoke-result.json", "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
-    print("\n===== SUMMARY =====")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
