@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from .alerts import evaluate_quote
 from .config import monitorable_products
 from .models import Quote
+from .security import redact_text, sanitize_data
 from .state import StateStore
 
 
@@ -27,10 +28,10 @@ def _health_error(quote: Quote) -> str | None:
     for key in ("error", "reason"):
         value = quote.detail.get(key)
         if value:
-            return str(value)[:500]
+            return redact_text(value)[:500]
     errors = quote.detail.get("errors")
     if isinstance(errors, list) and errors:
-        return str(errors[0])[:500]
+        return redact_text(errors[0])[:500]
     return None
 
 
@@ -61,26 +62,31 @@ class MonitorEngine:
                     status="SOURCE_ERROR",
                     source=provider,
                     checked_at=now,
-                    detail={"error": f"{type(exc).__name__}: {exc}"},
+                    detail={"error": redact_text(f"{type(exc).__name__}: {exc}")},
                 )
+
+            # Redact source-returned detail before it can reach stdout, state, or
+            # health files. StateStore applies another recursive guard at disk write.
+            quote.detail = sanitize_data(quote.detail)
 
             # Alert policy is a reserved no-op interface in the current phase.
             quote, events, accepted = evaluate_quote(product, quote, {}, now=now)
             previous = self.store.status.get("products", {}).get(product_id, {})
             last_success_at = now if accepted else previous.get("last_success_at")
 
-            status_record = quote.to_dict()
+            status_record = sanitize_data(quote.to_dict())
             status_record.update(
                 {
                     "monitoring_price": quote.monitoring_price,
                     "accepted_sample": accepted,
-                    "events": [event.to_dict() for event in events],
+                    "events": [sanitize_data(event.to_dict()) for event in events],
                     "last_checked_at": now,
                     "last_success_at": last_success_at,
                     "source_status": quote.status,
                     "data_age_seconds": 0 if accepted else _age_seconds(now, last_success_at),
                 }
             )
+            status_record = sanitize_data(status_record)
             self.store.set_status(product_id, status_record)
             self.store.update_source_health(
                 str(provider),
@@ -93,23 +99,25 @@ class MonitorEngine:
             if accepted:
                 self.store.append_history(
                     product_id,
-                    {
-                        "checked_at": now,
-                        "status": quote.status,
-                        "price": quote.price,
-                        "effective_price": quote.effective_price,
-                        "monitoring_price": quote.monitoring_price,
-                        "confidence": quote.confidence,
-                        "source": quote.source,
-                        "source_product_id": quote.source_product_id,
-                        "canonical_sku": quote.canonical_sku,
-                        "provider_stable_id": quote.detail.get("goods_id_b"),
-                    },
+                    sanitize_data(
+                        {
+                            "checked_at": now,
+                            "status": quote.status,
+                            "price": quote.price,
+                            "effective_price": quote.effective_price,
+                            "monitoring_price": quote.monitoring_price,
+                            "confidence": quote.confidence,
+                            "source": quote.source,
+                            "source_product_id": quote.source_product_id,
+                            "canonical_sku": quote.canonical_sku,
+                            "provider_stable_id": quote.detail.get("goods_id_b"),
+                        }
+                    ),
                     limit=int(self.config.get("history_limit", 365)),
                 )
 
             output["products"][product_id] = status_record
-            output["events"].extend(event.to_dict() for event in events)
+            output["events"].extend(sanitize_data(event.to_dict()) for event in events)
 
         output["state_files_changed"] = self.store.save(now)
-        return output
+        return sanitize_data(output)
