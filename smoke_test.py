@@ -5,15 +5,20 @@ from datetime import datetime, timezone
 import requests
 
 BASE_URL = "https://appapi.maishou88.com"
-INVITE_CODE = "6110440"  # Public third-party code used only for smoke testing.
-KEYWORD = "iPhone 16"
-TIMEOUT_SECONDS = 20
-COMMON_HEADERS = {
+PUBLIC_INVITE_CODE = "6110440"
+CONNECT_TIMEOUT = 6
+READ_TIMEOUT = 10
+HEADERS = {
     "Accept": "application/json",
     "Referer": "https://hnbc018.kuaizhan.com/",
     "User-Agent": "Mozilla/5.0 AppleWebKit/537 Chrome/143 Safari/537",
 }
-PLATFORMS = {1: "taobao", 2: "jd", 3: "pdd"}
+
+CASES = [
+    (1, "taobao", "小米手环"),
+    (2, "jd", "iPhone 16"),
+    (3, "pdd", "纸巾"),
+]
 
 
 def pick(item, *keys):
@@ -29,8 +34,7 @@ def pick(item, *keys):
 def looks_like_goods(item):
     if not isinstance(item, dict):
         return False
-    keys = set(item.keys())
-    return bool(keys & {"goodsId", "goods_id", "title", "goodsName", "actualPrice", "price", "shopName"})
+    return bool(set(item.keys()) & {"goodsId", "goods_id", "title", "goodsName", "actualPrice", "price", "shopName"})
 
 
 def find_goods_list_deep(obj):
@@ -63,110 +67,78 @@ def summarize_first(goods):
     }
 
 
-def post_form(url, payload):
-    response = requests.post(url, headers=COMMON_HEADERS, data=payload, timeout=TIMEOUT_SECONDS)
+def call_search(source_type, keyword, invite_code):
+    payload = {
+        "keyword": keyword,
+        "sourceType": str(source_type),
+        "page": "1",
+        "pageSize": "5",
+        "inviteCode": invite_code,
+    }
+    response = requests.post(
+        BASE_URL + "/api/v1/homepage/searchList",
+        headers=HEADERS,
+        data=payload,
+        timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
+    )
     try:
         body = response.json()
     except Exception:
         body = None
-    return response.status_code, response.text, body
-
-
-def post_json(url, payload):
-    headers = dict(COMMON_HEADERS)
-    headers["Content-Type"] = "application/json"
-    response = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT_SECONDS)
-    try:
-        body = response.json()
-    except Exception:
-        body = None
-    return response.status_code, response.text, body
-
-
-def test_platform(source_type, platform):
-    result = {
-        "platform": platform,
-        "sourceType": source_type,
-        "v1": {"http": None, "ok": False, "goods_count": 0, "first": None, "api_status": None, "api_code": None, "api_message": None},
-        "v3": {"http": None, "ok": False, "goods_count": 0, "first": None, "api_status": None, "api_code": None, "api_message": None},
-        "error": None,
+    goods = find_goods_list_deep(body)
+    first = summarize_first(goods)
+    return {
+        "http": response.status_code,
+        "api_status": body.get("status") if isinstance(body, dict) else None,
+        "api_code": body.get("code") if isinstance(body, dict) else None,
+        "api_message": body.get("message") if isinstance(body, dict) else None,
+        "goods_count": len(goods),
+        "first": first,
+        "ok": response.status_code == 200 and bool(goods) and bool(first) and first.get("actualPrice") not in (None, "", 0, "0", "0.0"),
+        "raw_preview": response.text[:800],
     }
 
-    print(f"\n===== {platform} / sourceType={source_type} =====")
 
+def safe_call(source_type, keyword, invite_code):
     try:
-        # Current endpoint observed in recently updated public Maishou clients.
-        v1_payload = {
-            "keyword": KEYWORD,
-            "sourceType": str(source_type),
-            "page": "1",
-            "pageSize": "5",
-            "inviteCode": INVITE_CODE,
-        }
-        status, raw, body = post_form(BASE_URL + "/api/v1/homepage/searchList", v1_payload)
-        goods = find_goods_list_deep(body)
-        result["v1"].update({
-            "http": status,
-            "goods_count": len(goods),
-            "first": summarize_first(goods),
-            "api_status": body.get("status") if isinstance(body, dict) else None,
-            "api_code": body.get("code") if isinstance(body, dict) else None,
-            "api_message": body.get("message") if isinstance(body, dict) else None,
-        })
-        first = result["v1"]["first"] or {}
-        result["v1"]["ok"] = status == 200 and bool(goods) and first.get("actualPrice") not in (None, "", 0, "0", "0.0")
-        print("V1_HTTP", status)
-        print("V1_RAW", raw[:2500])
-        print("V1_PARSED", json.dumps(result["v1"], ensure_ascii=False))
-
-        # Old endpoint documented by Kumagt/price-monitor, retained for comparison.
-        v3_payload = {
-            "keyword": KEYWORD,
-            "sourceType": str(source_type),
-            "inviteCode": INVITE_CODE,
-            "supplierCode": "",
-            "activityId": "",
-            "usageScene": 5,
-            "page": 1,
-            "pageSize": 5,
-        }
-        status, raw, body = post_json(BASE_URL + "/api/v3/goods/list", v3_payload)
-        goods = find_goods_list_deep(body)
-        result["v3"].update({
-            "http": status,
-            "goods_count": len(goods),
-            "first": summarize_first(goods),
-            "api_status": body.get("status") if isinstance(body, dict) else None,
-            "api_code": body.get("code") if isinstance(body, dict) else None,
-            "api_message": body.get("message") if isinstance(body, dict) else None,
-        })
-        first = result["v3"]["first"] or {}
-        result["v3"]["ok"] = status == 200 and bool(goods) and first.get("actualPrice") not in (None, "", 0, "0", "0.0")
-        print("V3_HTTP", status)
-        print("V3_RAW", raw[:1500])
-        print("V3_PARSED", json.dumps(result["v3"], ensure_ascii=False))
-
+        return call_search(source_type, keyword, invite_code)
     except Exception as exc:
-        result["error"] = f"{type(exc).__name__}: {exc}"
-        print("ERROR", result["error"])
-
-    return result
+        return {
+            "http": None,
+            "api_status": None,
+            "api_code": None,
+            "api_message": None,
+            "goods_count": 0,
+            "first": None,
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
 
 
 def main():
-    results = [test_platform(source, name) for source, name in PLATFORMS.items()]
+    results = []
+    for source_type, platform, keyword in CASES:
+        print(f"\n===== {platform} / sourceType={source_type} / {keyword} =====")
+        with_code = safe_call(source_type, keyword, PUBLIC_INVITE_CODE)
+        without_code = safe_call(source_type, keyword, "")
+        print("WITH_6110440", json.dumps(with_code, ensure_ascii=False, indent=2))
+        print("WITHOUT_CODE", json.dumps(without_code, ensure_ascii=False, indent=2))
+        results.append({
+            "platform": platform,
+            "sourceType": source_type,
+            "keyword": keyword,
+            "with_6110440": with_code,
+            "without_code": without_code,
+        })
+
     report = {
         "tested_at": datetime.now(timezone.utc).isoformat(),
-        "keyword": KEYWORD,
-        "invite_code": INVITE_CODE,
+        "endpoint": "/api/v1/homepage/searchList",
+        "public_invite_code": PUBLIC_INVITE_CODE,
         "results": results,
-        "all_v1_ok": all(r["v1"]["ok"] for r in results),
-        "all_v3_ok": all(r["v3"]["ok"] for r in results),
     }
-
     with open("smoke-result.json", "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
-
     print("\n===== SUMMARY =====")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
