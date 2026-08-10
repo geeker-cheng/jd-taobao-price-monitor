@@ -24,9 +24,13 @@ product / store / mapping validation
         ↓
 normalize Quote + confidence
         ↓
+redact sensitive runtime material
+        ↓
 update latest status + source health
         ↓
 append history only when the logical price sample changes
+        ↓
+scan public state for unredacted secrets
         ↓
 commit data/*.json back to main
 ```
@@ -96,13 +100,26 @@ For JD, the project includes the public default Maishou invite code:
 6110440
 ```
 
-It was found in public third-party integrations and may belong to another party/referral relationship. It is not owned by this repository or its maintainer and does not imply endorsement. Users can override it with `MAISHOU_INVITE_CODE`. The monitor does not need Maishou purchase/share-link conversion endpoints.
+It was found in public third-party integrations and may belong to another party/referral relationship. It is not owned by this repository or its maintainer and does not imply endorsement. Users can override it with `MAISHOU_INVITE_CODE`. A private/custom override should be stored as an Actions Secret. The monitor does not need Maishou purchase/share-link conversion endpoints.
+
+## Public-repository security
+
+This repository is designed to remain public. Runtime errors can contain request URLs, and some APIs put credentials in query/path parameters. The monitor therefore:
+
+- recursively redacts configured secret values and fields such as `apikey`, `token`, `authorization`, `password`, and `inviteCode`;
+- sanitizes source errors before stdout/state output;
+- sanitizes state again at the persistence boundary;
+- runs `python -m price_monitor.cli scan-state` after live collection and **before** `git commit`;
+- refuses to commit state if the scan finds unredacted sensitive material.
+
+GitHub log masking is treated only as an additional safeguard, not as the protection for public JSON files. See `docs/PUBLIC_REPOSITORY_SECURITY.md`.
 
 ## Development checks
 
 ```bash
 python -m price_monitor.cli validate
 python -m unittest discover -s tests -v
+python -m price_monitor.cli scan-state
 ```
 
-The workflow runs both checks before every live collection.
+The workflow runs validation/tests before every live collection and runs the public-state scan before persistence.
