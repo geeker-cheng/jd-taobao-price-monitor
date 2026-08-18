@@ -3,7 +3,7 @@
     "cuktech_ad653c_jd": {
       "accepted_sample": true,
       "canonical_sku": "100068768088",
-      "checked_at": "2026-08-18T07:02:01.353627+00:00",
+      "checked_at": "2026-08-18T10:44:52.004805+00:00",
       "confidence": "EXACT_SKU_PRICE",
       "coupon": 0.0,
       "data_age_seconds": 0,
@@ -14,8 +14,8 @@
       },
       "effective_price": 77.7,
       "events": [],
-      "last_checked_at": "2026-08-18T07:02:00.020057+00:00",
-      "last_success_at": "2026-08-18T07:02:00.020057+00:00",
+      "last_checked_at": "2026-08-18T10:44:50.780867+00:00",
+      "last_success_at": "2026-08-18T10:44:50.780867+00:00",
       "monitoring_price": 77.7,
       "original_price": 77.7,
       "platform": "jd",
@@ -23,7 +23,7 @@
       "product_id": "cuktech_ad653c_jd",
       "shop": "CUKTECH酷态科京东自营旗舰店",
       "source": "maishou",
-      "source_product_id": "Jx8AO9GFGZU2AhX1Nt1E2AFBTBo438_3nmugCitgMCAZO0wcs",
+      "source_product_id": "Jx8AO9GFGZU2Ah57BDKp2AFBTBo438_3nmugCitgMCAZO0wcs",
       "source_status": "OK",
       "status": "OK",
       "title": "CUKTECH酷态科65W氮化镓充电头USB/Type-C多口快充器适用40W苹果17小米/华为/三星/MacbookNeo/笔记本电脑"
@@ -31,7 +31,7 @@
     "cuktech_ad653c_tmall": {
       "accepted_sample": true,
       "canonical_sku": null,
-      "checked_at": "2026-08-18T07:02:05.851033+00:00",
+      "checked_at": "2026-08-18T10:44:56.807988+00:00",
       "confidence": "PRODUCT_PAGE_PRICE",
       "coupon": 0.0,
       "data_age_seconds": 0,
@@ -42,8 +42,8 @@
       },
       "effective_price": 108.0,
       "events": [],
-      "last_checked_at": "2026-08-18T07:02:00.020057+00:00",
-      "last_success_at": "2026-08-18T07:02:00.020057+00:00",
+      "last_checked_at": "2026-08-18T10:44:50.780867+00:00",
+      "last_success_at": "2026-08-18T10:44:50.780867+00:00",
       "monitoring_price": 108.0,
       "original_price": null,
       "platform": "taobao",
@@ -51,7 +51,7 @@
       "product_id": "cuktech_ad653c_tmall",
       "shop": "CUKTECH酷态科旗舰店",
       "source": "haodanku",
-      "source_product_id": "zDKWJ5Xxfet23ppxIvZKIdt4-OJzVevmu08Qg9z5JF8r",
+      "source_product_id": "vPN7bBRtZtNZxzrfAQ4i0te-OJzVevmu08Qg9z5JF8r",
       "source_status": "OK",
       "status": "OK",
       "title": "【CUKTECH酷态科】PD快充65W氮化镓多口充电器BBJ"
@@ -59,7 +59,7 @@
     "vivo_x200s_12_512_jd": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-08-18T07:02:06.639631+00:00",
+      "checked_at": "2026-08-18T10:44:57.496491+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
       "data_age_seconds": null,
@@ -69,7 +69,7 @@
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-08-18T07:02:00.020057+00:00",
+      "last_checked_at": "2026-08-18T10:44:50.780867+00:00",
       "last_success_at": null,
       "monitoring_price": null,
       "original_price": null,
@@ -84,6 +84,6 @@
       "title": null
     }
   },
-  "updated_at": "2026-08-18T07:02:00.020057+00:00",
+  "updated_at": "2026-08-18T10:44:50.780867+00:00",
   "version": 2
 }
