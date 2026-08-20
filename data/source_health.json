@@ -2,20 +2,20 @@
   "sources": {
     "haodanku": {
       "consecutive_failures": 0,
-      "last_checked_at": "2026-08-20T07:04:08.071243+00:00",
+      "last_checked_at": "2026-08-20T10:45:17.035409+00:00",
       "last_error": null,
       "last_status": "OK",
-      "last_success_at": "2026-08-20T07:04:08.071243+00:00"
+      "last_success_at": "2026-08-20T10:45:17.035409+00:00"
     },
     "maishou": {
       "consecutive_failures": 1,
-      "last_checked_at": "2026-08-20T07:04:08.071243+00:00",
+      "last_checked_at": "2026-08-20T10:45:17.035409+00:00",
       "last_error": "NO_MATCH",
-      "last_error_at": "2026-08-20T07:04:08.071243+00:00",
+      "last_error_at": "2026-08-20T10:45:17.035409+00:00",
       "last_status": "NO_MATCH",
-      "last_success_at": "2026-08-20T07:04:08.071243+00:00"
+      "last_success_at": "2026-08-20T10:45:17.035409+00:00"
     }
   },
-  "updated_at": "2026-08-20T07:04:08.071243+00:00",
+  "updated_at": "2026-08-20T10:45:17.035409+00:00",
   "version": 1
 }
