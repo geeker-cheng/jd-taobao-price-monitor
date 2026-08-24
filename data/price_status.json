@@ -3,18 +3,18 @@
     "cuktech_ad653c_jd": {
       "accepted_sample": false,
       "canonical_sku": "100068768088",
-      "checked_at": "2026-08-24T07:18:41.453430+00:00",
+      "checked_at": "2026-08-24T10:52:09.650335+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
-      "data_age_seconds": 14587,
+      "data_age_seconds": 27395,
       "detail": {
-        "error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v3/goods/detail (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7fdc8e103250>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
+        "error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v3/goods/detail (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7fc767fb8f50>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
         "mapped_goods_id_b": "3nmugCitgMCAZO0wcs",
         "stage": "verified_mapping_detail"
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-08-24T07:18:21.017612+00:00",
+      "last_checked_at": "2026-08-24T10:51:49.244543+00:00",
       "last_success_at": "2026-08-24T03:15:14.015601+00:00",
       "monitoring_price": null,
       "original_price": null,
@@ -31,7 +31,7 @@
     "cuktech_ad653c_tmall": {
       "accepted_sample": true,
       "canonical_sku": null,
-      "checked_at": "2026-08-24T07:18:45.275118+00:00",
+      "checked_at": "2026-08-24T10:52:13.242654+00:00",
       "confidence": "PRODUCT_PAGE_PRICE",
       "coupon": 0.0,
       "data_age_seconds": 0,
@@ -42,8 +42,8 @@
       },
       "effective_price": 108.0,
       "events": [],
-      "last_checked_at": "2026-08-24T07:18:21.017612+00:00",
-      "last_success_at": "2026-08-24T07:18:21.017612+00:00",
+      "last_checked_at": "2026-08-24T10:51:49.244543+00:00",
+      "last_success_at": "2026-08-24T10:51:49.244543+00:00",
       "monitoring_price": 108.0,
       "original_price": null,
       "platform": "taobao",
@@ -51,7 +51,7 @@
       "product_id": "cuktech_ad653c_tmall",
       "shop": "CUKTECH酷态科旗舰店",
       "source": "haodanku",
-      "source_product_id": "Awbn88NTztVgrbGUmqNivtn-OJzVevmu08Qg9z5JF8r",
+      "source_product_id": "xNVQVM4hktmGVXAfQeXiAt9-OJzVevmu08Qg9z5JF8r",
       "source_status": "OK",
       "status": "OK",
       "title": "【CUKTECH酷态科】PD快充65W氮化镓多口充电器BBJ"
@@ -59,17 +59,17 @@
     "vivo_x200s_12_512_jd": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-08-24T07:19:05.514335+00:00",
+      "checked_at": "2026-08-24T10:52:33.269632+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
       "data_age_seconds": null,
       "detail": {
-        "error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v1/homepage/searchList (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7fdc8f26df50>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
+        "error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v1/homepage/searchList (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7fc7677628d0>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
         "stage": "family_search"
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-08-24T07:18:21.017612+00:00",
+      "last_checked_at": "2026-08-24T10:51:49.244543+00:00",
       "last_success_at": null,
       "monitoring_price": null,
       "original_price": null,
@@ -84,6 +84,6 @@
       "title": null
     }
   },
-  "updated_at": "2026-08-24T07:18:21.017612+00:00",
+  "updated_at": "2026-08-24T10:51:49.244543+00:00",
   "version": 2
 }
