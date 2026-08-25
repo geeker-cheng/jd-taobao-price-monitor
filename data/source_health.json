@@ -2,20 +2,20 @@
   "sources": {
     "haodanku": {
       "consecutive_failures": 0,
-      "last_checked_at": "2026-08-25T07:06:39.931977+00:00",
+      "last_checked_at": "2026-08-25T10:47:44.434675+00:00",
       "last_error": null,
       "last_status": "OK",
-      "last_success_at": "2026-08-25T07:06:39.931977+00:00"
+      "last_success_at": "2026-08-25T10:47:44.434675+00:00"
     },
     "maishou": {
-      "consecutive_failures": 3,
-      "last_checked_at": "2026-08-25T07:06:39.931977+00:00",
-      "last_error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v1/homepage/searchList (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7fae7dc3db50>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
-      "last_error_at": "2026-08-25T07:06:39.931977+00:00",
+      "consecutive_failures": 5,
+      "last_checked_at": "2026-08-25T10:47:44.434675+00:00",
+      "last_error": "ReadTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Read timed out. (read timeout=2.5)",
+      "last_error_at": "2026-08-25T10:47:44.434675+00:00",
       "last_status": "SOURCE_ERROR",
       "last_success_at": "2026-08-25T03:11:13.111077+00:00"
     }
   },
-  "updated_at": "2026-08-25T07:06:39.931977+00:00",
+  "updated_at": "2026-08-25T10:47:44.434675+00:00",
   "version": 1
 }
