@@ -2,20 +2,20 @@
   "sources": {
     "haodanku": {
       "consecutive_failures": 0,
-      "last_checked_at": "2026-08-26T10:50:06.841939+00:00",
+      "last_checked_at": "2026-08-27T12:45:14.643577+00:00",
       "last_error": null,
       "last_status": "OK",
-      "last_success_at": "2026-08-26T10:50:06.841939+00:00"
+      "last_success_at": "2026-08-27T12:45:14.643577+00:00"
     },
     "maishou": {
-      "consecutive_failures": 1,
-      "last_checked_at": "2026-08-26T10:50:06.841939+00:00",
-      "last_error": "NO_MATCH",
-      "last_error_at": "2026-08-26T10:50:06.841939+00:00",
-      "last_status": "NO_MATCH",
+      "consecutive_failures": 3,
+      "last_checked_at": "2026-08-27T12:45:14.643577+00:00",
+      "last_error": "ReadTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Read timed out. (read timeout=2.5)",
+      "last_error_at": "2026-08-27T12:45:14.643577+00:00",
+      "last_status": "SOURCE_ERROR",
       "last_success_at": "2026-08-26T10:50:06.841939+00:00"
     }
   },
-  "updated_at": "2026-08-26T10:50:06.841939+00:00",
+  "updated_at": "2026-08-27T12:45:14.643577+00:00",
   "version": 1
 }
