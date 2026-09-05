@@ -3,7 +3,7 @@
     "cuktech_ad653c_jd": {
       "accepted_sample": true,
       "canonical_sku": "100068768088",
-      "checked_at": "2026-09-05T13:26:44.896371+00:00",
+      "checked_at": "2026-09-05T16:48:40.856085+00:00",
       "confidence": "EXACT_SKU_PRICE",
       "coupon": 0.0,
       "data_age_seconds": 0,
@@ -14,8 +14,8 @@
       },
       "effective_price": 78.0,
       "events": [],
-      "last_checked_at": "2026-09-05T13:26:43.392404+00:00",
-      "last_success_at": "2026-09-05T13:26:43.392404+00:00",
+      "last_checked_at": "2026-09-05T16:48:39.525687+00:00",
+      "last_success_at": "2026-09-05T16:48:39.525687+00:00",
       "monitoring_price": 78.0,
       "original_price": 99.0,
       "platform": "jd",
@@ -23,7 +23,7 @@
       "product_id": "cuktech_ad653c_jd",
       "shop": "CUKTECH酷态科京东自营旗舰店",
       "source": "maishou",
-      "source_product_id": "Jx8AO9GFGZU2AnGqBKkE2AFBTBo438_3nmugCitgMCAZO0wcs",
+      "source_product_id": "Jx8AO9GFGZU2An6NgZwO2AFBTBo438_3nmugCitgMCAZO0wcs",
       "source_status": "OK",
       "status": "OK",
       "title": "CUKTECH酷态科65W氮化镓充电头USB/Type-C多口快充器适用40W苹果17小米/华为/三星/MacbookNeo/笔记本电脑"
@@ -31,10 +31,10 @@
     "cuktech_ad653c_tmall": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-09-05T13:26:48.927657+00:00",
+      "checked_at": "2026-09-05T16:48:44.693728+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
-      "data_age_seconds": 168842,
+      "data_age_seconds": 180958,
       "detail": {
         "candidate_count": 2,
         "candidates": [
@@ -57,7 +57,7 @@
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-05T13:26:43.392404+00:00",
+      "last_checked_at": "2026-09-05T16:48:39.525687+00:00",
       "last_success_at": "2026-09-03T14:32:41.377194+00:00",
       "monitoring_price": null,
       "original_price": null,
@@ -74,7 +74,7 @@
     "vivo_x200s_12_512_jd": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-09-05T13:26:49.592250+00:00",
+      "checked_at": "2026-09-05T16:48:45.414673+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
       "data_age_seconds": null,
@@ -84,7 +84,7 @@
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-05T13:26:43.392404+00:00",
+      "last_checked_at": "2026-09-05T16:48:39.525687+00:00",
       "last_success_at": null,
       "monitoring_price": null,
       "original_price": null,
@@ -99,6 +99,6 @@
       "title": null
     }
   },
-  "updated_at": "2026-09-05T13:26:43.392404+00:00",
+  "updated_at": "2026-09-05T16:48:39.525687+00:00",
   "version": 2
 }
