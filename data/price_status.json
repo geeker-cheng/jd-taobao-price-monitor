@@ -1,40 +1,40 @@
 {
   "products": {
     "cuktech_ad653c_jd": {
-      "accepted_sample": true,
+      "accepted_sample": false,
       "canonical_sku": "100068768088",
-      "checked_at": "2026-09-13T14:20:48.542053+00:00",
-      "confidence": "EXACT_SKU_PRICE",
-      "coupon": 0.0,
-      "data_age_seconds": 0,
+      "checked_at": "2026-09-14T07:52:23.304078+00:00",
+      "confidence": "UNVERIFIED",
+      "coupon": null,
+      "data_age_seconds": 63077,
       "detail": {
-        "goods_id_b": "3nmugCitgMCAZO0wcs",
-        "provider_mapping_verified": true,
-        "self_operated": true
+        "error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v3/goods/detail (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7effa7adb650>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
+        "mapped_goods_id_b": "3nmugCitgMCAZO0wcs",
+        "stage": "verified_mapping_detail"
       },
-      "effective_price": 78.0,
+      "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-13T14:20:45.088022+00:00",
+      "last_checked_at": "2026-09-14T07:52:02.803716+00:00",
       "last_success_at": "2026-09-13T14:20:45.088022+00:00",
-      "monitoring_price": 78.0,
-      "original_price": 99.0,
+      "monitoring_price": null,
+      "original_price": null,
       "platform": "jd",
-      "price": 78.0,
+      "price": null,
       "product_id": "cuktech_ad653c_jd",
-      "shop": "CUKTECH酷态科京东自营旗舰店",
+      "shop": null,
       "source": "maishou",
-      "source_product_id": "Jx8AO9GFGZU2AivK7kVc2AFBTBo438_3nmugCitgMCAZO0wcs",
-      "source_status": "OK",
-      "status": "OK",
-      "title": "CUKTECH酷态科65W氮化镓充电器Type-C多口充电头快充适用60W苹果18华为小米三星/MacbookNeo/笔记本电脑"
+      "source_product_id": null,
+      "source_status": "SOURCE_ERROR",
+      "status": "SOURCE_ERROR",
+      "title": null
     },
     "cuktech_ad653c_tmall": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-09-13T14:20:52.421451+00:00",
+      "checked_at": "2026-09-14T07:52:27.191671+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
-      "data_age_seconds": 863283,
+      "data_age_seconds": 926361,
       "detail": {
         "candidate_count": 2,
         "candidates": [
@@ -57,7 +57,7 @@
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-13T14:20:45.088022+00:00",
+      "last_checked_at": "2026-09-14T07:52:02.803716+00:00",
       "last_success_at": "2026-09-03T14:32:41.377194+00:00",
       "monitoring_price": null,
       "original_price": null,
@@ -74,17 +74,17 @@
     "vivo_x200s_12_512_jd": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-09-13T14:20:53.133237+00:00",
+      "checked_at": "2026-09-14T07:52:47.253442+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
       "data_age_seconds": null,
       "detail": {
-        "matched_search_candidates": 0,
+        "error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v1/homepage/searchList (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7effa7ae9110>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
         "stage": "family_search"
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-13T14:20:45.088022+00:00",
+      "last_checked_at": "2026-09-14T07:52:02.803716+00:00",
       "last_success_at": null,
       "monitoring_price": null,
       "original_price": null,
@@ -94,11 +94,11 @@
       "shop": null,
       "source": "maishou",
       "source_product_id": null,
-      "source_status": "NO_MATCH",
-      "status": "NO_MATCH",
+      "source_status": "SOURCE_ERROR",
+      "status": "SOURCE_ERROR",
       "title": null
     }
   },
-  "updated_at": "2026-09-13T14:20:45.088022+00:00",
+  "updated_at": "2026-09-14T07:52:02.803716+00:00",
   "version": 2
 }
