@@ -1,22 +1,22 @@
 {
   "sources": {
     "haodanku": {
-      "consecutive_failures": 24,
-      "last_checked_at": "2026-09-14T07:52:02.803716+00:00",
+      "consecutive_failures": 25,
+      "last_checked_at": "2026-09-14T16:21:21.003538+00:00",
       "last_error": "RuntimeError: Haodanku search failed: {'code': 0, 'msg': '数据已获取完毕或获取数据失败!', 'data': [], 'min_id': 0, 'tb_p': 1}",
-      "last_error_at": "2026-09-14T07:52:02.803716+00:00",
+      "last_error_at": "2026-09-14T16:21:21.003538+00:00",
       "last_status": "AMBIGUOUS_SOURCE_MAPPING",
       "last_success_at": "2026-09-03T14:32:41.377194+00:00"
     },
     "maishou": {
-      "consecutive_failures": 3,
-      "last_checked_at": "2026-09-14T07:52:02.803716+00:00",
-      "last_error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v1/homepage/searchList (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x7effa7ae9110>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
-      "last_error_at": "2026-09-14T07:52:02.803716+00:00",
-      "last_status": "SOURCE_ERROR",
-      "last_success_at": "2026-09-13T14:20:45.088022+00:00"
+      "consecutive_failures": 1,
+      "last_checked_at": "2026-09-14T16:21:21.003538+00:00",
+      "last_error": "NO_MATCH",
+      "last_error_at": "2026-09-14T16:21:21.003538+00:00",
+      "last_status": "NO_MATCH",
+      "last_success_at": "2026-09-14T16:21:21.003538+00:00"
     }
   },
-  "updated_at": "2026-09-14T07:52:02.803716+00:00",
+  "updated_at": "2026-09-14T16:21:21.003538+00:00",
   "version": 1
 }
