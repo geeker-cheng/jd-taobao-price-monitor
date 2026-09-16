@@ -1,51 +1,51 @@
 {
   "products": {
     "cuktech_ad653c_jd": {
-      "accepted_sample": true,
+      "accepted_sample": false,
       "canonical_sku": "100068768088",
-      "checked_at": "2026-09-16T07:39:34.849262+00:00",
-      "confidence": "EXACT_SKU_PRICE",
-      "coupon": 0.0,
-      "data_age_seconds": 0,
+      "checked_at": "2026-09-16T14:56:51.482892+00:00",
+      "confidence": "UNVERIFIED",
+      "coupon": null,
+      "data_age_seconds": 26235,
       "detail": {
-        "goods_id_b": "3nmugCitgMCAZO0wcs",
-        "provider_mapping_verified": true,
-        "self_operated": true
+        "error": "ReadTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Read timed out. (read timeout=2.5)",
+        "mapped_goods_id_b": "3nmugCitgMCAZO0wcs",
+        "stage": "verified_mapping_detail"
       },
-      "effective_price": 78.0,
+      "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-16T07:39:33.051727+00:00",
+      "last_checked_at": "2026-09-16T14:56:48.083063+00:00",
       "last_success_at": "2026-09-16T07:39:33.051727+00:00",
-      "monitoring_price": 78.0,
-      "original_price": 99.0,
+      "monitoring_price": null,
+      "original_price": null,
       "platform": "jd",
-      "price": 78.0,
+      "price": null,
       "product_id": "cuktech_ad653c_jd",
-      "shop": "CUKTECH酷态科京东自营旗舰店",
+      "shop": null,
       "source": "maishou",
-      "source_product_id": "Jx8AO9GFGZU2AiUJWkhe2AFBTBo438_3nmugCitgMCAZO0wcs",
-      "source_status": "OK",
-      "status": "OK",
-      "title": "CUKTECH酷态科65W氮化镓充电器Type-C多口充电头快充适用60W苹果18华为小米三星/MacbookNeo/笔记本电脑"
+      "source_product_id": null,
+      "source_status": "SOURCE_ERROR",
+      "status": "SOURCE_ERROR",
+      "title": null
     },
     "cuktech_ad653c_tmall": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-09-16T07:39:39.504977+00:00",
+      "checked_at": "2026-09-16T14:56:55.862673+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
-      "data_age_seconds": 1098411,
+      "data_age_seconds": 1124646,
       "detail": {
         "candidate_count": 2,
         "candidates": [
           {
-            "effective_price": "108",
+            "effective_price": "95",
             "price": "108",
             "shop": "CUKTECH酷态科旗舰店",
             "title": "【CUKTECH酷态科】PD快充65W氮化镓多口充电器BBJ"
           },
           {
-            "effective_price": "79",
+            "effective_price": "69.5",
             "price": "79",
             "shop": "CUKTECH酷态科旗舰店",
             "title": "【链接】CUKTECH酷态科电能闪充PD快充65W氮化镓充电器三口"
@@ -57,7 +57,7 @@
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-16T07:39:33.051727+00:00",
+      "last_checked_at": "2026-09-16T14:56:48.083063+00:00",
       "last_success_at": "2026-09-03T14:32:41.377194+00:00",
       "monitoring_price": null,
       "original_price": null,
@@ -74,17 +74,17 @@
     "vivo_x200s_12_512_jd": {
       "accepted_sample": false,
       "canonical_sku": null,
-      "checked_at": "2026-09-16T07:39:41.308488+00:00",
+      "checked_at": "2026-09-16T14:56:58.883147+00:00",
       "confidence": "UNVERIFIED",
       "coupon": null,
       "data_age_seconds": null,
       "detail": {
-        "matched_search_candidates": 0,
+        "error": "ReadTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Read timed out. (read timeout=2.5)",
         "stage": "family_search"
       },
       "effective_price": null,
       "events": [],
-      "last_checked_at": "2026-09-16T07:39:33.051727+00:00",
+      "last_checked_at": "2026-09-16T14:56:48.083063+00:00",
       "last_success_at": null,
       "monitoring_price": null,
       "original_price": null,
@@ -94,11 +94,11 @@
       "shop": null,
       "source": "maishou",
       "source_product_id": null,
-      "source_status": "NO_MATCH",
-      "status": "NO_MATCH",
+      "source_status": "SOURCE_ERROR",
+      "status": "SOURCE_ERROR",
       "title": null
     }
   },
-  "updated_at": "2026-09-16T07:39:33.051727+00:00",
+  "updated_at": "2026-09-16T14:56:48.083063+00:00",
   "version": 2
 }
