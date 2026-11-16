@@ -110,9 +110,21 @@
         "source": "haodanku",
         "source_product_id": "v6JjyoZysZtDW9p7CAQ4i0te-OJzVevmu08Qg9z5JF8r",
         "status": "OK"
+      },
+      {
+        "canonical_sku": null,
+        "checked_at": "2026-11-16T20:24:38.833123+00:00",
+        "confidence": "PRODUCT_PAGE_PRICE",
+        "effective_price": 95.0,
+        "monitoring_price": 95.0,
+        "price": 108.0,
+        "provider_stable_id": null,
+        "source": "haodanku",
+        "source_product_id": "7nyRGgZdT4tgoPw4fnXVhMtV-OJzVevmu08Qg9z5JF8r",
+        "status": "OK"
       }
     ]
   },
-  "updated_at": "2026-11-13T17:41:46.544034+00:00",
+  "updated_at": "2026-11-16T20:24:38.833123+00:00",
   "version": 2
 }
