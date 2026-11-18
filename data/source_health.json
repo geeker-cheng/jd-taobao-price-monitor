@@ -1,22 +1,22 @@
 {
   "sources": {
     "haodanku": {
-      "consecutive_failures": 1,
-      "last_checked_at": "2026-11-17T22:16:47.304736+00:00",
-      "last_error": "ConnectTimeout: HTTPSConnectionPool(host='v3.api.haodanku.com', port=443): Max retries exceeded with url: /supersearch?apikey=***&keyword=%E9%85%B7%E6%80%81%E7%A7%91+AD653C&min_id=1&back=50 (Caused by ConnectTimeoutError(<HTTPSConnection(host='v3.api.haodanku.com', port=443) at 0x7a4fad682d50>, 'Connection to v3.api.haodanku.com timed out. (connect timeout=6)'))",
+      "consecutive_failures": 0,
+      "last_checked_at": "2026-11-18T10:04:43.626753+00:00",
+      "last_error": null,
       "last_error_at": "2026-11-17T22:16:47.304736+00:00",
-      "last_status": "SOURCE_ERROR",
-      "last_success_at": "2026-11-17T10:39:38.041787+00:00"
+      "last_status": "OK",
+      "last_success_at": "2026-11-18T10:04:43.626753+00:00"
     },
     "maishou": {
       "consecutive_failures": 1,
-      "last_checked_at": "2026-11-17T22:16:47.304736+00:00",
+      "last_checked_at": "2026-11-18T10:04:43.626753+00:00",
       "last_error": "NO_MATCH",
-      "last_error_at": "2026-11-17T22:16:47.304736+00:00",
+      "last_error_at": "2026-11-18T10:04:43.626753+00:00",
       "last_status": "NO_MATCH",
-      "last_success_at": "2026-11-17T22:16:47.304736+00:00"
+      "last_success_at": "2026-11-18T10:04:43.626753+00:00"
     }
   },
-  "updated_at": "2026-11-17T22:16:47.304736+00:00",
+  "updated_at": "2026-11-18T10:04:43.626753+00:00",
   "version": 1
 }
