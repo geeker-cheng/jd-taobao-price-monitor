@@ -72,6 +72,18 @@
         "source": "maishou",
         "source_product_id": "Jx8AO9GFGZU2AtzuY44n2AFBTBo438_3nmugCitgMCAZO0wcs",
         "status": "OK"
+      },
+      {
+        "canonical_sku": "100068768088",
+        "checked_at": "2026-11-22T09:42:26.568231+00:00",
+        "confidence": "EXACT_SKU_PRICE",
+        "effective_price": 78.0,
+        "monitoring_price": 78.0,
+        "price": 78.0,
+        "provider_stable_id": "3nmugCitgMCAZO0wcs",
+        "source": "maishou",
+        "source_product_id": "Jx8AO9GFGZU2AXI3vQdv2AFBTBo438_3nmugCitgMCAZO0wcs",
+        "status": "OK"
       }
     ],
     "cuktech_ad653c_tmall": [
@@ -137,6 +149,6 @@
       }
     ]
   },
-  "updated_at": "2026-11-19T18:59:53.480337+00:00",
+  "updated_at": "2026-11-22T09:42:26.568231+00:00",
   "version": 2
 }

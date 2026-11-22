@@ -2,21 +2,21 @@
   "sources": {
     "haodanku": {
       "consecutive_failures": 0,
-      "last_checked_at": "2026-11-21T17:26:39.687873+00:00",
+      "last_checked_at": "2026-11-22T09:42:26.568231+00:00",
       "last_error": null,
       "last_error_at": "2026-11-17T22:16:47.304736+00:00",
       "last_status": "OK",
-      "last_success_at": "2026-11-21T17:26:39.687873+00:00"
+      "last_success_at": "2026-11-22T09:42:26.568231+00:00"
     },
     "maishou": {
-      "consecutive_failures": 7,
-      "last_checked_at": "2026-11-21T17:26:39.687873+00:00",
-      "last_error": "ConnectTimeout: HTTPSConnectionPool(host='appapi.maishou88.com', port=443): Max retries exceeded with url: /api/v1/homepage/searchList (Caused by ConnectTimeoutError(<HTTPSConnection(host='appapi.maishou88.com', port=443) at 0x733d1f4bfb10>, 'Connection to appapi.maishou88.com timed out. (connect timeout=2.5)'))",
-      "last_error_at": "2026-11-21T17:26:39.687873+00:00",
-      "last_status": "SOURCE_ERROR",
-      "last_success_at": "2026-11-20T09:57:57.251356+00:00"
+      "consecutive_failures": 1,
+      "last_checked_at": "2026-11-22T09:42:26.568231+00:00",
+      "last_error": "NO_MATCH",
+      "last_error_at": "2026-11-22T09:42:26.568231+00:00",
+      "last_status": "NO_MATCH",
+      "last_success_at": "2026-11-22T09:42:26.568231+00:00"
     }
   },
-  "updated_at": "2026-11-21T17:26:39.687873+00:00",
+  "updated_at": "2026-11-22T09:42:26.568231+00:00",
   "version": 1
 }
