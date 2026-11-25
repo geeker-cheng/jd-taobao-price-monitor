@@ -1,22 +1,22 @@
 {
   "sources": {
     "haodanku": {
-      "consecutive_failures": 0,
-      "last_checked_at": "2026-11-24T23:27:44.752564+00:00",
-      "last_error": null,
-      "last_error_at": "2026-11-17T22:16:47.304736+00:00",
-      "last_status": "OK",
+      "consecutive_failures": 1,
+      "last_checked_at": "2026-11-25T11:12:59.975224+00:00",
+      "last_error": "ReadTimeout: HTTPSConnectionPool(host='v3.api.haodanku.com', port=443): Read timed out. (read timeout=6)",
+      "last_error_at": "2026-11-25T11:12:59.975224+00:00",
+      "last_status": "SOURCE_ERROR",
       "last_success_at": "2026-11-24T23:27:44.752564+00:00"
     },
     "maishou": {
       "consecutive_failures": 1,
-      "last_checked_at": "2026-11-24T23:27:44.752564+00:00",
+      "last_checked_at": "2026-11-25T11:12:59.975224+00:00",
       "last_error": "NO_MATCH",
-      "last_error_at": "2026-11-24T23:27:44.752564+00:00",
+      "last_error_at": "2026-11-25T11:12:59.975224+00:00",
       "last_status": "NO_MATCH",
-      "last_success_at": "2026-11-24T23:27:44.752564+00:00"
+      "last_success_at": "2026-11-25T11:12:59.975224+00:00"
     }
   },
-  "updated_at": "2026-11-24T23:27:44.752564+00:00",
+  "updated_at": "2026-11-25T11:12:59.975224+00:00",
   "version": 1
 }
