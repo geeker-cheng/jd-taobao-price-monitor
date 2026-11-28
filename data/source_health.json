@@ -2,21 +2,21 @@
   "sources": {
     "haodanku": {
       "consecutive_failures": 0,
-      "last_checked_at": "2026-11-27T22:40:06.001527+00:00",
+      "last_checked_at": "2026-11-28T10:18:38.162943+00:00",
       "last_error": null,
       "last_error_at": "2026-11-25T11:12:59.975224+00:00",
       "last_status": "OK",
-      "last_success_at": "2026-11-27T22:40:06.001527+00:00"
+      "last_success_at": "2026-11-28T10:18:38.162943+00:00"
     },
     "maishou": {
       "consecutive_failures": 1,
-      "last_checked_at": "2026-11-27T22:40:06.001527+00:00",
+      "last_checked_at": "2026-11-28T10:18:38.162943+00:00",
       "last_error": "NO_MATCH",
-      "last_error_at": "2026-11-27T22:40:06.001527+00:00",
+      "last_error_at": "2026-11-28T10:18:38.162943+00:00",
       "last_status": "NO_MATCH",
-      "last_success_at": "2026-11-27T22:40:06.001527+00:00"
+      "last_success_at": "2026-11-28T10:18:38.162943+00:00"
     }
   },
-  "updated_at": "2026-11-27T22:40:06.001527+00:00",
+  "updated_at": "2026-11-28T10:18:38.162943+00:00",
   "version": 1
 }
